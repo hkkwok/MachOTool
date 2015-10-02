@@ -73,20 +73,14 @@ class DecodeWindow(WindowTab):
         pi = ProgressIndicator('show bytes ranges...', 1)
         for idx in xrange(len(br.subranges)):
             subrange = br.subranges[idx]
-            do_insert = False
-            child_id = None
-            if idx == 0:
-                child_id = parent_id + '.0'
-                if not self.bytes_range_tree.tree.exists(child_id):
-                    do_insert = True
-            else:
-                do_insert = True
-            if do_insert:
+            child_id = parent_id + '.%d' % idx
+            if not self.bytes_range_tree.tree.exists(child_id):
                 child_id = self.bytes_range_tree.add(parent_id, idx, values=get_values(subrange))
             if len(subrange.subranges) > 0:
                 # if there are subsubranges, just insert 1st row so that the open icon is shown
-                subsubrange = subrange.subranges[0]
-                self.bytes_range_tree.add(child_id, 0, values=get_values(subsubrange))
+                if not self.bytes_range_tree.tree.exists(child_id + '.0'):
+                    subsubrange = subrange.subranges[0]
+                    self.bytes_range_tree.add(child_id, 0, values=get_values(subsubrange))
             pi.click()
         pi.done()
 
