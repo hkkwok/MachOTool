@@ -268,6 +268,7 @@ class BytesTable(ttk.Labelframe):
                 # Process prologue
                 self._mark_one_row(start_row, start_col, self.BYTES_PER_ROW)
                 start = (start_row + 1) * self.BYTES_PER_ROW
+                start_row += 1
             if stop_col != 0:
                 # Process epilogue
                 self._mark_one_row(stop_row, 0, stop_col)

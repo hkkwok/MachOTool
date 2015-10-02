@@ -33,6 +33,7 @@ from non_headers.cstring import Cstring
 from non_headers.linkedit_data import LinkEditData
 from non_headers.symbol_table_block import SymbolTableBlock
 from non_headers.symtab_string import SymtabString
+from non_headers.encrypted_block import EncryptedBlock
 
 
 class SegmentDescriptor(object):
@@ -217,7 +218,9 @@ class LoadCommandParser(BytesRangeParser):
             raise NotImplementedError()  # TODO - need to make a test binary
         elif cmd_desc in ('LC_ENCRYPTION_INFO', 'LC_ENCRYPTION_INFO_64'):
             assert isinstance(lc, (EncryptionInfoCommand, EncryptionInfoCommand64))
-            raise NotImplementedError()  # TODO - need to make a test binary
+            # TODO - need to fix the creation of an encrypted block
+            #self.bytes_range.insert_subrange(lc.cryptoff, lc.cryptsize,
+            #                                 data=EncryptedBlock(lc.cryptid))
         elif cmd_desc == 'LC_LINKER_OPTION':
             assert isinstance(lc, LinkerOptionCommand)
             raise NotImplementedError()  # TODO - need to make a test binary

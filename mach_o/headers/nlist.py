@@ -97,7 +97,7 @@ class NSect(Field):
 
 
 class NDesc(Field):
-    REFERENCE_TYPE = 0xf
+    REFERENCE_TYPE = 0x7
 
     REFERENCE_FLAGS = Mapping({
         'REFERENCE_FLAG_UNDEFINED_NON_LAZY': 0,
