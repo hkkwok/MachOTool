@@ -24,6 +24,7 @@ from headers.encryption_info_command import EncryptionInfoCommand, EncryptionInf
 from headers.linker_option_command import LinkerOptionCommand
 from headers.nlist import Nlist, Nlist64
 from headers.indirect_symbol import IndirectSymbol
+from headers.rpath_command import RpathCommand
 
 from non_headers.padding import UnexpectedPadding, Padding
 from non_headers.load_command_block import LoadCommandBlock
@@ -230,6 +231,11 @@ class LoadCommandParser(BytesRangeParser):
         elif cmd_desc == 'LC_LINKER_OPTION':
             assert isinstance(lc, LinkerOptionCommand)
             raise NotImplementedError()  # TODO - need to make a test binary
+        elif cmd_desc == 'LC_RPATH':
+            assert isinstance(lc, RpathCommand)
+            self._add_lc_str('path', lc.path_offset)
+            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+                                             data=LoadCommandBlock(cmd_desc))
 
         # Account for any trailing gap
         self._add_trailing_gap(cmd_desc)

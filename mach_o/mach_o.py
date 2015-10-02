@@ -20,6 +20,7 @@ from headers.twolevel_hints_command import TwolevelHintsCommand
 from headers.prebind_cksum_command import PrebindCksumCommand
 from headers.encryption_info_command import EncryptionInfoCommand, EncryptionInfoCommand64
 from headers.linker_option_command import LinkerOptionCommand
+from headers.rpath_command import RpathCommand
 
 from non_headers.encrypted_block import EncryptedBlock
 
@@ -62,6 +63,7 @@ class MachO(object):
         'LC_PREBIND_CKSUM': PrebindCksumCommand,
         'LC_ENCRYPTION_INFO': EncryptionInfoCommand,
         'LC_LINKER_OPTION': LinkerOptionCommand,
+        'LC_RPATH': RpathCommand,
     }
     # Load commands for 64-bit architectures
     COMMANDS_64 = {
@@ -96,6 +98,7 @@ class MachO(object):
         'LC_PREBIND_CKSUM': PrebindCksumCommand,
         'LC_ENCRYPTION_INFO_64': EncryptionInfoCommand64,
         'LC_LINKER_OPTION': LinkerOptionCommand,
+        'LC_RPATH': RpathCommand,
     }
 
     def __init__(self, mach_o_br):
