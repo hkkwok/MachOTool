@@ -17,7 +17,7 @@ class LcStr(Header):
 
     @staticmethod
     def find_str(desc, bytes_):
-        for idx in range(len(bytes_)):
+        for idx in xrange(len(bytes_)):
             if bytes_[idx] == '\x00':
                 return LcStr(desc, bytes_[:idx+1])
         return None

@@ -19,14 +19,14 @@ class Fat(BytesRangeParser):
         # Create all fat arch headers
         hdr_size = FatArch.get_size()
         self.archs = list()
-        for arch_idx in range(self.fat_header.nfat_arch):
+        for arch_idx in xrange(self.fat_header.nfat_arch):
             bytes_ = self._get_bytes(hdr_size)
             fat_arch = FatArch(bytes_)
             self.add_subrange(fat_arch, hdr_size)
             self.archs.append(fat_arch)
 
         # Create Mach-O section for each architecture
-        for arch_idx in range(self.fat_header.nfat_arch):
+        for arch_idx in xrange(self.fat_header.nfat_arch):
             fat_arch = self.archs[arch_idx]
             mach_o_br = self.bytes_range.add_subrange(fat_arch.offset, fat_arch.size)
             macho = MachO(mach_o_br, verbose)

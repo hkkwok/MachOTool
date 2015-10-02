@@ -134,7 +134,7 @@ class LoadCommandParser(BytesRangeParser):
             assert isinstance(lc, (SegmentCommand, SegmentCommand64))
             segment_desc = SegmentDescriptor(lc)
             self.mach_o.segments[segment_desc.name] = segment_desc
-            for idx in range(lc.nsects):
+            for idx in xrange(lc.nsects):
                 # ???? Should be possible to miss 32 and 64-bit sections, right? If yes, can move this loop outside
                 if cmd_desc == 'LC_SEGMENT':
                     cls = Section
@@ -355,7 +355,7 @@ class SymtabParser(LinkEditParser):
 
         # Parse all nlist entries
         str_table = dict()
-        for idx in range(symtab_command.nsyms):
+        for idx in xrange(symtab_command.nsyms):
             if progress is not None:
                 progress.click()
             start = idx * self.nlist_size
@@ -376,7 +376,7 @@ class SymtabParser(LinkEditParser):
                 try:
                     str_br.add_subrange(nlist.n_strx, total_len, data=SymtabString(nlist.n_strx, sym_name))
                     str_table[nlist.n_strx] = total_len
-                except ValueError, e:
+                except ValueError as e:
                     print 'WARNING: fail to create symtab string subrange (%s)' % str(e)
         if progress is not None:
             progress.done()
@@ -398,7 +398,7 @@ class DysymtabParser(LinkEditParser):
         sym_br = self.add_section(dysymtab_command.indirectsymoff, dysymtab_command.nindirectsyms * indirect_sym_size,
                                   data=SymbolTableBlock('%d indirect symbols' % dysymtab_command.nindirectsyms))
         # Parse all nlist entries
-        for idx in range(dysymtab_command.nindirectsyms):
+        for idx in xrange(dysymtab_command.nindirectsyms):
             start = idx * indirect_sym_size
             stop = start + indirect_sym_size
             bytes_ = sym_br.bytes(start, stop)

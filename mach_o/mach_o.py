@@ -133,7 +133,7 @@ class MachO(object):
         lc_parser = LoadCommandParser(mach_o_br, self)
         start += hdr_size
         lc_size = LoadCommand.get_size()
-        for idx in range(self.mach_header.ncmds):
+        for idx in xrange(self.mach_header.ncmds):
             generic_lc = LoadCommand(mach_o_br.bytes(start, start + lc_size))
             lc_parser.parse(generic_lc, start)
             start += generic_lc.cmdsize

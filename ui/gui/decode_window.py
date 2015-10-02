@@ -60,7 +60,7 @@ class DecodeWindow(WindowTab):
             self.bytes_table.add_bytes(bytes_.bytes)
 
     def _add_subtree(self, parent_id, br):
-        for idx in range(len(br.subranges)):
+        for idx in xrange(len(br.subranges)):
             subrange = br.subranges[idx]
             if hasattr(subrange.data, 'name'):
                 desc = subrange.data.name
@@ -190,7 +190,7 @@ class BytesTable(ttk.Labelframe):
         self.text.configure(state=Tk.NORMAL)
         self.end_offset = len(bytes_)
         self.rows = 1
-        for offset in range(0, self.end_offset, self.BYTES_PER_ROW):
+        for offset in xrange(0, self.end_offset, self.BYTES_PER_ROW):
             start = base_offset + offset
             stop = base_offset + min(self.end_offset, start + self.BYTES_PER_ROW)
             self._add_one_row(self.rows, bytes_[start:stop], start)
@@ -251,7 +251,7 @@ class BytesTable(ttk.Labelframe):
                 pass  # special case two incomplete rows
             else:
                 assert start % self.BYTES_PER_ROW == 0 and stop % self.BYTES_PER_ROW == 0
-                for row in range(start_row, stop_row):
+                for row in xrange(start_row, stop_row):
                     self._mark_one_row(row, 0, self.BYTES_PER_ROW)
         self.text.configure(state=Tk.DISABLED)
 

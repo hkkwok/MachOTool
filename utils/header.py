@@ -99,7 +99,7 @@ class Header(object):
                 raise HeaderSizeError(self.name, self.get_size(), bytes_len)
             attrs = self.get_parser().unpack(bytes_)
             assert len(attrs) == len(self.FIELDS)
-            for idx in range(len(attrs)):
+            for idx in xrange(len(attrs)):
                 field = self.FIELDS[idx]
                 setattr(self, field.name, attrs[idx])
                 if not field.validate(self):

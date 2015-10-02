@@ -44,7 +44,7 @@ class CstringSection(TextSection):
         """
         s = ''
         offset = 0
-        for idx in range(len(bytes_)):
+        for idx in xrange(len(bytes_)):
             if bytes_[idx] == '\x00':
                 self.strings[s] = offset
                 s = ''

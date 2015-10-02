@@ -34,7 +34,7 @@ class BytesRange(Range):
             self.subranges.append(new_subrange)
         else:
             # Make sure there is nothing in the subrange and also inserts it in the right index
-            for idx in range(len(self.subranges)):
+            for idx in xrange(len(self.subranges)):
                 if new_subrange < self.subranges[idx]:
                     self.subranges.insert(idx, new_subrange)
                     return new_subrange

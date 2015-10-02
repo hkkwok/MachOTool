@@ -10,7 +10,7 @@ class TestBytesRange(unittest.TestCase):
     def check_subranges(self, bytes_range, *expected):
         expected_len = len(expected)
         self.assertEqual(expected_len, len(bytes_range.subranges))
-        for idx in range(expected_len):
+        for idx in xrange(expected_len):
             self.check_subrange(bytes_range.subranges[idx], *expected[idx])
 
     def check_partition(self, bytes_range, expected):
@@ -20,7 +20,7 @@ class TestBytesRange(unittest.TestCase):
 
     def check_partitions(self, *params):
         assert len(params) % 2 == 0
-        for idx in range(0, len(params), 2):
+        for idx in xrange(0, len(params), 2):
             self.check_partition(params[idx], params[idx+1])
 
     def test_add_subrange(self):
