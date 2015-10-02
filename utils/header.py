@@ -148,12 +148,24 @@ class IndexedHeader(Header):
     the nlist entries defined in symtab_command.
     """
     NEXT_INDEX = 0
+    DERIVED_CLASSES = set()
 
     @classmethod
     def _next_index(cls):
+        if cls not in IndexedHeader.DERIVED_CLASSES:
+            IndexedHeader.DERIVED_CLASSES.add(cls)
         val = cls.NEXT_INDEX
         cls.NEXT_INDEX += 1
         return val
+
+    @classmethod
+    def reset_index(cls):
+        cls.NEXT_INDEX = 0
+
+    @staticmethod
+    def reset_indices():
+        for cls in IndexedHeader.DERIVED_CLASSES:
+            cls.reset_index()
 
     def __init__(self, name, bytes_=None, **kwargs):
         self.index = self._next_index()

@@ -18,8 +18,8 @@ from utils.bytes_range import BytesRange, Bytes
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from mach_o.fat import FatHeader, Fat
 from mach_o.mach_o import MachO
-from utils.progress_indicator import ProgressIndicator
 
+from utils.header import IndexedHeader
 
 class Gui(object):
     TITLE = 'MachOTool'
@@ -79,6 +79,8 @@ class Gui(object):
         # Read and parse the file
         bytes_ = Bytes(file_path)
         bytes_range = BytesRange(0, len(bytes_), data=bytes_)
+
+        IndexedHeader.reset_indices()
 
         # Determine if the first header is a fat header, mach header or neither
         if MachHeader.is_valid_header(bytes_.bytes) or MachHeader64.is_valid_header(bytes_.bytes):

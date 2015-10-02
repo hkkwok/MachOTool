@@ -33,6 +33,10 @@ class Section(IndexedHeader):
         self.reserved2 = None
         super(Section, self).__init__('section', bytes_, **kwargs)
 
+    @classmethod
+    def reset_index(cls):
+        cls.NEXT_INDEX = 1
+
 
 class Section64(IndexedHeader):
     ENDIAN = None
