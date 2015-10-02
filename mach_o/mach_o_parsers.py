@@ -28,12 +28,11 @@ from headers.indirect_symbol import IndirectSymbol
 from non_headers.padding import UnexpectedPadding, Padding
 from non_headers.load_command_block import LoadCommandBlock
 from non_headers.segment_block import SegmentBlock
-from non_headers.section_block import SectionBlock, DataSection, TextSection, CstringSection
-from non_headers.cstring import Cstring
+from non_headers.section_block import SectionBlock, DataSection, TextSection, CstringSection, ObjCMethodNameSection
+from non_headers.cstring import Cstring, ObjCMethodName
 from non_headers.linkedit_data import LinkEditData
 from non_headers.symbol_table_block import SymbolTableBlock
 from non_headers.symtab_string import SymtabString
-from non_headers.encrypted_block import EncryptedBlock
 
 
 class SegmentDescriptor(object):
@@ -57,6 +56,7 @@ class SectionDescriptor(object):
     SECT_BSS = '__bss'
     SECT_COMMON = '__common'
     SECT_CSTRING = '__cstring'  # This is not in loader.h but added anyway
+    SECT_OBJC_METHNAME = '__objc_methname'
 
     def __init__(self, section):
         assert isinstance(section, (Section, Section64))
@@ -81,6 +81,9 @@ class SectionDescriptor(object):
 
     def is_common(self):
         return self.is_data_section(self.SECT_COMMON)
+
+    def is_objc_methname(self):
+        return self.is_text_section(self.SECT_OBJC_METHNAME)
 
 
 class LoadCommandParser(BytesRangeParser):
@@ -266,6 +269,12 @@ class SectionParser(BytesRangeParser):
             for (string, offset) in data_section.items():
                 unescaped_string = Unescape.convert(string)
                 cstring_br.add_subrange(offset, len(string) + 1, data=Cstring(unescaped_string))
+        elif section_desc.is_objc_methname():
+            data_section = ObjCMethodNameSection(bytes_)
+            obj_methname_br = self.add_subrange(data_section, section.size)
+            for (string, offset) in data_section.items():
+                unescaped_string = Unescape.convert(string)
+                obj_methname_br.add_subrange(offset, len(string) + 1, data=ObjCMethodName(unescaped_string))
         else:
             self.add_subrange(data_section, section.size)
 

@@ -32,11 +32,11 @@ class TextSection(SectionBlock):
         self.name = 'TextSection: %s' % sect_name
 
 
-class CstringSection(TextSection):
-    def __init__(self, bytes_):
-        self.name = 'CstringSection: 0 strings'
+class NullTerminatedStringSection(TextSection):
+    def __init__(self, sect_name, bytes_):
+        self.name = None
         self.strings = dict()
-        super(CstringSection, self).__init__('__cstring', bytes_)
+        super(NullTerminatedStringSection, self).__init__(sect_name, bytes_)
 
     def parse_bytes(self, bytes_):
         """
@@ -64,3 +64,15 @@ class CstringSection(TextSection):
         Return a list of 2-tuple of (string, offset). Offsets are relative to the beginning of the section
         """
         return sorted(self.strings.items(), lambda x, y: cmp(x[1], y[1]))
+
+
+class CstringSection(NullTerminatedStringSection):
+    def __init__(self, bytes_):
+        super(CstringSection, self).__init__('__cstring', bytes_)
+        self.name = 'CstringSection: %d strings' % len(self.strings)
+
+
+class ObjCMethodNameSection(NullTerminatedStringSection):
+    def __init__(self, bytes_):
+        super(ObjCMethodNameSection, self).__init__('__objc_methname', bytes_)
+        self.name = 'ObjCMethodNameSection: %d strings' % len(self.strings)
