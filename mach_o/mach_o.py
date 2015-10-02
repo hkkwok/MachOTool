@@ -21,6 +21,8 @@ from headers.prebind_cksum_command import PrebindCksumCommand
 from headers.encryption_info_command import EncryptionInfoCommand, EncryptionInfoCommand64
 from headers.linker_option_command import LinkerOptionCommand
 
+from non_headers.encrypted_block import EncryptedBlock
+
 from mach_o_parsers import LoadCommandParser, SectionParser, SegmentParser
 from utils.header import HeaderInvalidValueError
 from utils.progress_indicator import ProgressIndicator
@@ -103,6 +105,7 @@ class MachO(object):
         self.load_commands = list()
         self.segments = dict()
         self.linkedit_br = None
+        self.encryption_info_commands = list()
 
         # Try to parse it as mach_header
         start = 0
@@ -125,6 +128,8 @@ class MachO(object):
             except ValueError:
                 raise ValueError('mach_o: no valid mach header found')
 
+        self.name = 'Mach-O: %s' % self.mach_header.FIELDS[1].display(self.mach_header)
+
         # Create a subrange for the parsed mach_header
         mach_header_br = mach_o_br.add_subrange(start, hdr_size)
         mach_header_br.data = self.mach_header
@@ -144,6 +149,11 @@ class MachO(object):
             for (sect_name, section_desc) in segment_desc.sections.items():
                 ProgressIndicator.display('parsing section %s, %s\n', seg_name, sect_name)
                 SectionParser(mach_o_br).parse(section_desc)
+
+        # Add all encryption blocks
+        for lc in self.encryption_info_commands:
+            assert isinstance(lc, (EncryptionInfoCommand, EncryptionInfoCommand64))
+            mach_o_br.insert_subrange(lc.cryptoff, lc.cryptsize, data=EncryptedBlock(lc.cryptid))
 
         # Add all segments
         for (seg_name, segment_desc) in self.segments.items():

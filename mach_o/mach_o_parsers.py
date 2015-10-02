@@ -218,9 +218,12 @@ class LoadCommandParser(BytesRangeParser):
             raise NotImplementedError()  # TODO - need to make a test binary
         elif cmd_desc in ('LC_ENCRYPTION_INFO', 'LC_ENCRYPTION_INFO_64'):
             assert isinstance(lc, (EncryptionInfoCommand, EncryptionInfoCommand64))
-            # TODO - need to fix the creation of an encrypted block
-            #self.bytes_range.insert_subrange(lc.cryptoff, lc.cryptsize,
-            #                                 data=EncryptedBlock(lc.cryptid))
+            # We need to delay the creation of an encrypted block because it usually
+            # overlaps with multiple text sections. If we add it now, it will
+            # causes an exception when other sections are added. So, we save it for now
+            # and process it after all sections are created but before segments are
+            # created.
+            self.mach_o.encryption_info_commands.append(lc)
         elif cmd_desc == 'LC_LINKER_OPTION':
             assert isinstance(lc, LinkerOptionCommand)
             raise NotImplementedError()  # TODO - need to make a test binary
