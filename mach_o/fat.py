@@ -5,7 +5,7 @@ from utils.bytes_range_parser import BytesRangeParser
 
 
 class Fat(BytesRangeParser):
-    def __init__(self, fat_br, verbose=False):
+    def __init__(self, fat_br):
         super(Fat, self).__init__(fat_br)
         self.start = 0
         self.current = 0
@@ -29,7 +29,7 @@ class Fat(BytesRangeParser):
         for arch_idx in xrange(self.fat_header.nfat_arch):
             fat_arch = self.archs[arch_idx]
             mach_o_br = self.bytes_range.add_subrange(fat_arch.offset, fat_arch.size)
-            macho = MachO(mach_o_br, verbose)
+            macho = MachO(mach_o_br)
             mach_o_br.data = macho
 
     def __repr__(self):

@@ -1,10 +1,9 @@
 class BytesRangeParser(object):
-    def __init__(self, bytes_range, verbose=False):
+    def __init__(self, bytes_range):
         self.bytes_range = bytes_range
         self.start = None
         self.cmd_size = None
         self.current = None
-        self.verbose = verbose
 
     def add_subrange(self, data=None, length=None):
         if length is None:

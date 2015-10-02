@@ -23,6 +23,7 @@ from headers.linker_option_command import LinkerOptionCommand
 
 from mach_o_parsers import LoadCommandParser, SectionParser, SegmentParser
 from utils.header import HeaderInvalidValueError
+from utils.progress_indicator import ProgressIndicator
 
 
 class MachO(object):
@@ -95,14 +96,13 @@ class MachO(object):
         'LC_LINKER_OPTION': LinkerOptionCommand,
     }
 
-    def __init__(self, mach_o_br, verbose=False):
+    def __init__(self, mach_o_br):
         self.arch_width = None
         self.command_table = None
         self.mach_header = None
         self.load_commands = list()
         self.segments = dict()
         self.linkedit_br = None
-        self.verbose = verbose
 
         # Try to parse it as mach_header
         start = 0
@@ -134,6 +134,7 @@ class MachO(object):
         start += hdr_size
         lc_size = LoadCommand.get_size()
         for idx in xrange(self.mach_header.ncmds):
+            ProgressIndicator.display('parsing load command %d\n', idx)
             generic_lc = LoadCommand(mach_o_br.bytes(start, start + lc_size))
             lc_parser.parse(generic_lc, start)
             start += generic_lc.cmdsize
@@ -141,10 +142,14 @@ class MachO(object):
         # Add all data sections
         for (seg_name, segment_desc) in self.segments.items():
             for (sect_name, section_desc) in segment_desc.sections.items():
+                ProgressIndicator.display('parsing section %s, %s\n', seg_name, sect_name)
                 SectionParser(mach_o_br).parse(section_desc)
 
         # Add all segments
         for (seg_name, segment_desc) in self.segments.items():
+            ProgressIndicator.display('parsing segment %s\n', seg_name)
             br = SegmentParser(mach_o_br).parse(segment_desc)
             if seg_name.startswith('__LINKEDIT'):
                 self.linkedit_br = br
+
+        ProgressIndicator.display('mach-o parsed\n')

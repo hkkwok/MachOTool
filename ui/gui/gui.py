@@ -18,6 +18,7 @@ from utils.bytes_range import BytesRange, Bytes
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from mach_o.fat import FatHeader, Fat
 from mach_o.mach_o import MachO
+from utils.progress_indicator import ProgressIndicator
 
 
 class Gui(object):
@@ -74,17 +75,17 @@ class Gui(object):
             title = '%s [%s]' % (self.TITLE, subtitle)
         self.parent.wm_title(title)
 
-    def load_file(self, file_path, verbose):
+    def load_file(self, file_path):
         # Read and parse the file
         bytes_ = Bytes(file_path)
         bytes_range = BytesRange(0, len(bytes_), data=bytes_)
 
         # Determine if the first header is a fat header, mach header or neither
         if MachHeader.is_valid_header(bytes_.bytes) or MachHeader64.is_valid_header(bytes_.bytes):
-            mach_o = MachO(bytes_range, verbose)
+            mach_o = MachO(bytes_range)
             bytes_range.data = mach_o
         elif FatHeader.is_valid_header(bytes_.bytes):
-            fat = Fat(bytes_range, verbose)
+            fat = Fat(bytes_range)
             bytes_range.data = fat
         else:
             print 'ERROR: Cannot find neither fat nor mach header in the beginning of the binary.'
@@ -128,7 +129,7 @@ class Gui(object):
     def open(self):
         file_path = filedialog.askopenfilename(parent=self.parent)
         if file_path != '':
-            self.load_file(file_path, True)
+            self.load_file(file_path)
 
     def open2(self, event):
         assert event is not None

@@ -167,7 +167,7 @@ class LoadCommandParser(BytesRangeParser):
             DyldInfoParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc == 'LC_SYMTAB':
             assert isinstance(lc, SymtabCommand)
-            SymtabParser(self.bytes_range, self.mach_o.arch_width, self.mach_o.verbose).parse(lc)
+            SymtabParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc == 'LC_DYSYMTAB':
             assert isinstance(lc, DysymtabCommand)
             DysymtabParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
@@ -285,8 +285,8 @@ class SegmentParser(BytesRangeParser):
 
 
 class LinkEditParser(BytesRangeParser):
-    def __init__(self, linkedit_br, arch_width, verbose=False):
-        super(LinkEditParser, self).__init__(linkedit_br, verbose)
+    def __init__(self, linkedit_br, arch_width):
+        super(LinkEditParser, self).__init__(linkedit_br)
         self.linkedit_start = self.bytes_range.abs_start()
         if arch_width == 32:
             self.nlist_class = Nlist
@@ -325,8 +325,8 @@ class DyldInfoParser(LinkEditParser):
 
 
 class SymtabParser(LinkEditParser):
-    def __init__(self, linkedit_br, arch_width, verbose=False):
-        super(SymtabParser, self).__init__(linkedit_br, arch_width, verbose)
+    def __init__(self, linkedit_br, arch_width):
+        super(SymtabParser, self).__init__(linkedit_br, arch_width)
 
     @staticmethod
     def _find_string(bytes_, start):
@@ -340,7 +340,7 @@ class SymtabParser(LinkEditParser):
             return
         self.start = 0
         self.cmd_size = len(self.bytes_range)
-        if self.verbose:
+        if ProgressIndicator.ENABLED:
             progress = ProgressIndicator('parsing symbol table...', 4096)
         else:
             progress = None

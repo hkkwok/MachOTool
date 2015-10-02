@@ -32,16 +32,25 @@ class BytesRange(Range):
         if len(self.subranges) == 0 or new_subrange > self.subranges[-1]:
             # Add new subrange to the end
             self.subranges.append(new_subrange)
+        elif new_subrange < self.subranges[0]:
+            self.subranges.insert(0, new_subrange)
         else:
-            # Make sure there is nothing in the subrange and also inserts it in the right index
-            for idx in xrange(len(self.subranges)):
-                if new_subrange < self.subranges[idx]:
-                    self.subranges.insert(idx, new_subrange)
-                    return new_subrange
-                elif new_subrange > self.subranges[idx]:
-                    continue
+            left_idx = 0
+            right_idx = len(self.subranges) - 1
+
+            while right_idx - left_idx > 1:
+                mid_idx = (left_idx + right_idx) / 2
+                mid = self.subranges[mid_idx].start
+                if mid < new_subrange.start:
+                    left_idx = mid_idx
+                elif mid > new_subrange.start:
+                    right_idx = mid_idx
                 else:
                     raise ValueError('New range overlaps with an existing range.')
+            if (self.subranges[left_idx] < new_subrange) and (new_subrange < self.subranges[right_idx]):
+                self.subranges.insert(right_idx, new_subrange)
+            else:
+                raise ValueError('New range overlaps with an existing range.')
 
         return new_subrange
 
