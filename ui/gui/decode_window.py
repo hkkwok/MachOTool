@@ -122,7 +122,7 @@ class DecodeWindow(WindowTab):
         for idx in path:
             br = br.subranges[idx]
             parent_id += '.' + str(idx)
-        #self._add_subtree(parent_id, br)
+        self._add_subtree(parent_id, br)
 
 
 class BytesRangeTree(TreeTable):
