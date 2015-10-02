@@ -11,6 +11,7 @@ except ImportError:
 import string
 
 from utils.header import Header
+from utils.progress_indicator import ProgressIndicator
 from tree_table import TreeTable
 from window_tab import WindowTab
 from auto_hide_scrollbar import AutoHideScrollbar
@@ -30,13 +31,14 @@ class DecodeWindow(WindowTab):
 
         # A bytes range tree on the left
         self.bytes_range_tree = BytesRangeTree(self.inner_panedwindow)
-        self.bytes_range_tree.callback = self.header_selected
+        self.bytes_range_tree.select_callback = self.header_selected
+        self.bytes_range_tree.open_callback = self.block_opened
         self.bytes_range_tree.configure(width=200, height=100, padding=5)
         self.inner_panedwindow.add(self.bytes_range_tree)
 
         # A table of header key-value pairs on the right
         self.header_table = FieldValueTable(self.inner_panedwindow)
-        self.header_table.callback = self.field_selected
+        self.header_table.select_callback = self.field_selected
         self.header_table.configure(width=100, height=100, padding=5)
         self.inner_panedwindow.add(self.header_table)
 
@@ -60,15 +62,33 @@ class DecodeWindow(WindowTab):
             self.bytes_table.add_bytes(bytes_.bytes)
 
     def _add_subtree(self, parent_id, br):
+        def get_values(sr):
+            if hasattr(sr.data, 'name'):
+                desc = sr.data.name
+            else:
+                desc = str(sr.data)
+            (start, stop) = sr.abs_range()
+            return desc, format(start, ','), format(stop, ',')
+
+        pi = ProgressIndicator('show bytes ranges...', 1)
         for idx in xrange(len(br.subranges)):
             subrange = br.subranges[idx]
-            if hasattr(subrange.data, 'name'):
-                desc = subrange.data.name
+            do_insert = False
+            child_id = None
+            if idx == 0:
+                child_id = parent_id + '.0'
+                if not self.bytes_range_tree.tree.exists(child_id):
+                    do_insert = True
             else:
-                desc = str(subrange.data)
-            (start, stop) = subrange.abs_range()
-            child_id = self.bytes_range_tree.add(parent_id, idx, values=(desc, format(start, ','), format(stop, ',')))
-            self._add_subtree(child_id, subrange)
+                do_insert = True
+            if do_insert:
+                child_id = self.bytes_range_tree.add(parent_id, idx, values=get_values(subrange))
+            if len(subrange.subranges) > 0:
+                # if there are subsubranges, just insert 1st row so that the open icon is shown
+                subsubrange = subrange.subranges[0]
+                self.bytes_range_tree.add(child_id, 0, values=get_values(subsubrange))
+            pi.click()
+        pi.done()
 
     def _bytes_range_from_path(self, path):
         br = self.bytes_range
@@ -96,6 +116,14 @@ class DecodeWindow(WindowTab):
         start = br.abs_start()
         self.bytes_table.mark_bytes(start + offset, start + offset + size)
 
+    def block_opened(self, path):
+        br = self.bytes_range
+        parent_id = ''
+        for idx in path:
+            br = br.subranges[idx]
+            parent_id += '.' + str(idx)
+        #self._add_subtree(parent_id, br)
+
 
 class BytesRangeTree(TreeTable):
     def __init__(self, parent, **kwargs):
@@ -103,7 +131,7 @@ class BytesRangeTree(TreeTable):
         self.tree.column('Start', width=80, stretch=False, anchor=Tk.E)
         self.tree.column('Stop', width=80, stretch=False, anchor=Tk.E)
         self.tree.configure(selectmode='browse')
-        self.callback = None
+        self.select_callback = None
 
 
 class FieldValueTable(TreeTable):
@@ -190,12 +218,15 @@ class BytesTable(ttk.Labelframe):
         self.text.configure(state=Tk.NORMAL)
         self.end_offset = len(bytes_)
         self.rows = 1
+        pi = ProgressIndicator('showing bytes...', 8192)
         for offset in xrange(0, self.end_offset, self.BYTES_PER_ROW):
             start = base_offset + offset
             stop = base_offset + min(self.end_offset, start + self.BYTES_PER_ROW)
             self._add_one_row(self.rows, bytes_[start:stop], start)
             self.rows += 1
+            pi.click()
         self.text.configure(state=Tk.DISABLED)
+        pi.done()
 
     def _mark_one_row(self, row, start, stop):
         def start_byte_column(offset):

@@ -19,13 +19,17 @@ class TreeTable(ttk.Labelframe):
     def __init__(self, parent, name, columns, **kwargs):
         self.columns = columns
         self.n_cols = len(self.columns)
-        self.callback = None
+        self.select_callback = None
+        self.open_callback = None
+        self.close_callback = None
 
         ttk.Labelframe.__init__(self, parent, text=name)
 
         self.tree = ttk.Treeview(self, columns=columns[1:], **kwargs)
         self.tree.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
         self.tree.bind('<<TreeviewSelect>>', self.selected)
+        self.tree.bind('<<TreeviewOpen>>', self.opened)
+        self.tree.bind('<<TreeviewClose>>', self.closed)
 
         self.yscroll = AutoHideScrollbar(self, orient=Tk.VERTICAL, command=self.tree.yview)
         self.yscroll.pack(side=Tk.RIGHT, fill=Tk.Y)
@@ -54,5 +58,15 @@ class TreeTable(ttk.Labelframe):
 
     def selected(self, event):
         assert event is not None  # use 'event' to get rid of a PyCharm warning.
-        if callable(self.callback):
-            self.callback(self.selected_path())
+        if callable(self.select_callback):
+            self.select_callback(self.selected_path())
+
+    def opened(self, event):
+        assert event is not None
+        if callable(self.open_callback):
+            self.open_callback(self.selected_path())
+
+    def closed(self, event):
+        assert event is not None
+        if callable(self.close_callback):
+            self.close_callback(self.selected_path())
