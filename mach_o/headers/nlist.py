@@ -80,6 +80,8 @@ class NType(HexField):
 
     def type(self, header):
         value = self._get_value(header)
+        if self._is_stab(value):
+            return self.NStabs.key(value)
         return self.NTypes.key(value & self.N_TYPE)
 
 
