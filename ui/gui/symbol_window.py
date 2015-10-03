@@ -9,7 +9,7 @@ from tree_table import TreeTable
 from utils.bytes_range import BytesRange
 from mach_o.headers.nlist import Nlist, Nlist64
 from mach_o.non_headers.symtab_string import SymtabString
-from mach_o.mach_o import MachO
+from mach_o.headers.mach_header import MachHeader, MachHeader64
 from collections import OrderedDict
 
 
@@ -40,7 +40,11 @@ class SymbolWindow(WindowTab):
         self.table.tree.tag_configure(self.LIGHT_BLUE_TAG_NAME, background='#e0e8f0')
         self.table.pack(side=Tk.BOTTOM, fill=Tk.BOTH, expand=True)
 
+        # symbol_tables is a list of OrderedDict. One OrderedDict per Mach-O. In each
+        # OrderedDict, symbol table strings are keyed by offset (from the beginning of
+        # the symbol table string table region.
         self.symbol_tables = list()
+        self.mach_o = list()
 
     def clear(self):
         self.clear_ui()
@@ -52,6 +56,7 @@ class SymbolWindow(WindowTab):
     def clear_states(self):
         self.bytes_range = None
         self.symbol_tables = list()
+        self.mach_o = list()
 
     def load(self, bytes_range, bytes_):
         assert isinstance(bytes_range, BytesRange)
@@ -62,7 +67,8 @@ class SymbolWindow(WindowTab):
 
     def _parse(self, br, start, stop, level):
         assert start is not None and stop is not None and level is not None  # get rid of pycharm warnings
-        if isinstance(br.data, MachO):
+        if isinstance(br.data, (MachHeader, MachHeader64)):
+            self.mach_o.append(br.data)
             self.symbol_tables.append(OrderedDict())
         elif isinstance(br.data, (Nlist, Nlist64)):
             nlist = br.data
@@ -90,7 +96,9 @@ class SymbolWindow(WindowTab):
 
         mach_o_idx = 0
         for symbol_table in self.symbol_tables:
-            mach_o_id = self.table.add('', mach_o_idx, ('Mach[%d]' % mach_o_idx, '', '', '', '', ''))
+            mach_o_hdr = self.mach_o[mach_o_idx]
+            cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
+            mach_o_id = self.table.add('', mach_o_idx, ('Mach-O: %s' % cpu_type, '', '', '', '', ''))
             symbol_idx = 0
             for (offset, (symbol, symbol_name)) in symbol_table.items():
                 if filter_pattern not in symbol_name:
