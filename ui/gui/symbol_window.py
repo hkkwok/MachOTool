@@ -7,7 +7,9 @@ except ImportError:
 from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.bytes_range import BytesRange
+from utils.header import NullTerminatedStringField
 from mach_o.headers.nlist import Nlist, Nlist64
+from mach_o.headers.section import Section, Section64
 from mach_o.non_headers.symtab_string import SymtabString
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from collections import OrderedDict
@@ -32,7 +34,7 @@ class SymbolWindow(WindowTab):
         self.search_entry.bind('<Return>', self.search)
 
         self.table = TreeTable(self, 'String',
-                               columns=('Symbol', 'Type', 'Global', 'Defined', 'Lazy', 'Other Flags'))
+                               columns=('Index', 'Section', 'Type', 'Global', 'Defined', 'Lazy', 'Symbol'))
         self.table.tree.column('Type', width=65, stretch=False, anchor=Tk.CENTER)
         self.table.tree.column('Global', width=45, stretch=False, anchor=Tk.CENTER)
         self.table.tree.column('Defined', width=45, stretch=False, anchor=Tk.CENTER)
@@ -45,6 +47,7 @@ class SymbolWindow(WindowTab):
         # the symbol table string table region.
         self.symbol_tables = list()
         self.mach_o = list()
+        self.sections = [None]
 
     def clear(self):
         self.clear_ui()
@@ -83,6 +86,8 @@ class SymbolWindow(WindowTab):
                                                              symtab_str.string)
             else:
                 self.symbol_tables[-1][symtab_str.offset] = (None, symtab_str.string)
+        elif isinstance(br.data, (Section, Section64)):
+            self.sections.append(br.data)
 
     @staticmethod
     def _y_or_n(boolean):
@@ -98,7 +103,7 @@ class SymbolWindow(WindowTab):
         for symbol_table in self.symbol_tables:
             mach_o_hdr = self.mach_o[mach_o_idx]
             cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
-            mach_o_id = self.table.add('', mach_o_idx, ('Mach-O: %s' % cpu_type, '', '', '', '', ''))
+            mach_o_id = self.table.add('', mach_o_idx, ('Mach-O', cpu_type, '', '', '', '', ''))
             symbol_idx = 0
             for (offset, (symbol, symbol_name)) in symbol_table.items():
                 if filter_pattern not in symbol_name:
@@ -108,13 +113,21 @@ class SymbolWindow(WindowTab):
                     kwargs = dict()
                 else:
                     kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
+                if symbol.n_sect == 0:
+                    section_desc = ''
+                else:
+                    this_section = self.sections[symbol.n_sect]
+                    section_desc = '%s, %s' % \
+                                   (NullTerminatedStringField.get_string(this_section.segname),
+                                    NullTerminatedStringField.get_string(this_section.sectname))
                 self.table.add(mach_o_id, symbol_idx,
-                               (symbol_name,
+                               (str(symbol.index),
+                                section_desc,
                                 symbol.type(),
                                 self._y_or_n(symbol.is_global()),
                                 self._y_or_n(symbol.is_defined()),
                                 self._y_or_n(symbol.is_lazy()),
-                                ''), **kwargs)
+                                symbol_name), **kwargs)
                 symbol_idx += 1
             if len(self.table.tree.get_children(mach_o_id)) == 0:
                 self.table.tree.delete(mach_o_id)
