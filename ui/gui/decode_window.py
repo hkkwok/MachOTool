@@ -163,7 +163,7 @@ class BytesTable(ttk.Labelframe):
 
     def __init__(self, parent):
         ttk.Labelframe.__init__(self, parent, text='Bytes')
-        self.text = Tk.Text(self)
+        self.text = Tk.Text(self, wrap=Tk.NONE)
         self.text.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
         if self.FONT is None:
             self.FONT = tkFont.Font(family=self.FONT_FAMILY, size=14, weight='normal')
@@ -195,7 +195,10 @@ class BytesTable(ttk.Labelframe):
 
     @classmethod
     def _printable(cls, s):
-        return ''.join(cls._printable_char(x) for x in s)
+        out = ''
+        for ch in s:
+            out += cls._printable_char(ch)
+        return out
 
     def _add_one_row(self, row, bytes_, start_offset):
         assert start_offset % self.BYTES_PER_ROW == 0

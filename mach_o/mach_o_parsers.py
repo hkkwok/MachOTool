@@ -234,6 +234,7 @@ class LoadCommandParser(BytesRangeParser):
         elif cmd_desc == 'LC_RPATH':
             assert isinstance(lc, RpathCommand)
             self._add_lc_str('path', lc.path_offset)
+            self._add_trailing_gap('alignment')
             self.bytes_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
 
