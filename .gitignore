@@ -1,3 +1,4 @@
 **.pyc
 tests/iOSTestProgram/iOSTestProgram.xcodeproj/project.xcworkspace/xcuserdata/**
+tests/binaries/iOSTestProgram/build/**
 
