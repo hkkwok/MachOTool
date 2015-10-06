@@ -21,6 +21,7 @@ from mach_o.mach_o import MachO
 
 from utils.header import IndexedHeader
 
+
 class Gui(object):
     TITLE = 'MachOTool'
     WINDOWS = (DecodeWindow, StringWindow, SymbolWindow)
@@ -108,6 +109,7 @@ class Gui(object):
                 tab.clear()
         self.bytes_range = bytes_range
         self.bytes = bytes_
+        self.parent.update_idletasks()
 
     def _selected_tab(self):
         selected = self.notebook.select()

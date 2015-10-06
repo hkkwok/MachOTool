@@ -170,22 +170,84 @@ class BytesTable(ttk.Labelframe):
             self.text.tag_configure(self.FONT_TAG_NAME, font=self.FONT)
             self.text.tag_configure(self.MARK_TAG_NAME, background='#d0f0d8')
 
-        self.yscroll = AutoHideScrollbar(self, orient=Tk.VERTICAL, command=self.text.yview)
+        self.yscroll = AutoHideScrollbar(self, orient=Tk.VERTICAL, command=self.yview)
         self.yscroll.pack(side=Tk.RIGHT, fill=Tk.Y)
 
-        self.text.configure(yscrollcommand=self.yscroll.set)
+        self.text.configure(yscrollcommand=self.yset)
         self.end_offset = None
         self.mark_ranges = None
         self.rows = None
+        self.lines = None
+        self.bytes = None
+        self.base_offset = None
+
+        self.widget_start = None
+        self.widget_stop = None
+
         self.clear()
 
     def clear(self):
-        self.end_offset = None
-        self.rows = 1
-        self.mark_ranges = list()
+        self.clear_states()
+        self.clear_ui()
+
+    def clear_ui(self):
         self.text.configure(state=Tk.NORMAL)
         self.text.delete('1.0', 'end')
         self.text.configure(state=Tk.DISABLED)
+        self.widget_start = None
+        self.widget_stop = None
+
+    def clear_states(self):
+        self.end_offset = None
+        self.rows = 1
+        self.mark_ranges = list()
+        self.base_offset = None
+
+    def widget_rows(self):
+        # TODO - This is not being updated but the initial value is good enough for now
+        return int(self.text.cget('height'))
+
+    def _update_begin(self):
+        self.text.configure(state=Tk.NORMAL)
+
+    def _update_end(self):
+        self.text.configure(state=Tk.DISABLED)
+
+    def yview(self, *args):
+        self.text.yview(*args)
+
+    def yset(self, start, stop):
+        start_row = int(float(start) * self.rows)
+        stop_row = min(int(float(stop) * self.rows + 0.5), start_row + self.widget_rows())
+        self.yscroll.set(start, stop)
+
+        if start_row == self.widget_start and stop_row == self.widget_stop:
+            return
+
+        self._update_begin()
+        assert self.widget_start <= self.widget_stop
+        assert start_row <= stop_row
+        if self.widget_start is None:
+            assert self.widget_stop is None
+            self._show_rows(start_row, stop_row)
+        elif self.widget_stop <= start_row or stop_row <= self.widget_start:
+            # The new and old regions are disjoint
+            self._hide_rows(self.widget_start, self.widget_stop)
+            self._show_rows(start_row, stop_row)
+        else:
+            if start_row < self.widget_start:
+                self._show_rows(start_row, self.widget_start - 1)
+            elif start_row > self.widget_start:
+                self._hide_rows(self.widget_start, start_row - 1)
+            if stop_row < self.widget_stop:
+                self._hide_rows(stop_row + 1, self.widget_stop)
+            elif stop_row > self.widget_stop:
+                self._show_rows(self.widget_stop + 1, stop_row)
+
+        self.widget_start = start_row
+        self.widget_stop = stop_row
+        self._update_end()
+        self.update_idletasks()
 
     @staticmethod
     def _printable_char(ch):
@@ -200,30 +262,57 @@ class BytesTable(ttk.Labelframe):
             out += cls._printable_char(ch)
         return out
 
-    def _add_one_row(self, row, bytes_, start_offset):
-        assert start_offset % self.BYTES_PER_ROW == 0
-        assert len(bytes_) <= self.BYTES_PER_ROW
-        start_addr = '%016x' % start_offset
+    def _format_row(self, row):
+        offset = row * self.BYTES_PER_ROW
+        start = self.base_offset + offset
+        stop = self.base_offset + min(self.end_offset, start + self.BYTES_PER_ROW)
+        bytes_ = self.bytes[start:stop]
+
+        start_addr = '%016x' % start
         hexes = ['%02x' % ord(x) for x in bytes_]
         if len(hexes) != self.BYTES_PER_ROW:
             hexes += ['  '] * (self.BYTES_PER_ROW - len(hexes))
         chars = self._printable(bytes_)
-        line = start_addr + '    ' + ' '.join(hexes) + '    ' + chars + '\n'
-        self.text.insert('%d.0' % row, line, self.FONT_TAG_NAME)
+        if len(chars) != self.BYTES_PER_ROW:
+            chars += ' ' * (self.BYTES_PER_ROW - len(chars))
+        line = start_addr + '    ' + ' '.join(hexes) + '    ' + chars
+        assert len(line) == 87
+        return line
+
+    def _offset_to_row(self, offset):
+        return offset / self.BYTES_PER_ROW
+
+    def _offset_to_row_roundup(self, offset):
+        return (offset + self.BYTES_PER_ROW - 1) / self.BYTES_PER_ROW
 
     def add_bytes(self, bytes_, base_offset=0):
-        self.text.configure(state=Tk.NORMAL)
+        self.base_offset = base_offset
+        self.bytes = bytes_
         self.end_offset = len(bytes_)
-        self.rows = 1
+        self.rows = self._offset_to_row_roundup(self.end_offset)
+
         pi = ProgressIndicator('showing bytes...', 8192)
-        for offset in xrange(0, self.end_offset, self.BYTES_PER_ROW):
-            start = base_offset + offset
-            stop = base_offset + min(self.end_offset, start + self.BYTES_PER_ROW)
-            self._add_one_row(self.rows, bytes_[start:stop], start)
-            self.rows += 1
+        self._update_begin()
+        for row in xrange(1, self.rows+1):
+            self.text.insert('%d.0' % row, '\n')
             pi.click()
-        self.text.configure(state=Tk.DISABLED)
         pi.done()
+        self._update_end()
+
+    def _show_row(self, row):
+        line = self._format_row(row)
+        self.text.insert('%d.0' % (row + 1), line)
+
+    def _show_rows(self, start, stop):
+        for row in xrange(start, stop+1):
+            self._show_row(row)
+
+    def _hide_row(self, row):
+        self.text.delete('%d.0' % (row + 1), '%d.87' % (row + 1))
+
+    def _hide_rows(self, start, stop):
+        for row in xrange(start, stop+1):
+            self._hide_row(row)
 
     def _mark_one_row(self, row, start, stop):
         def start_byte_column(offset):
@@ -238,6 +327,8 @@ class BytesTable(ttk.Labelframe):
         def column2index(r, c):
             return '%d.%d' % (1 + r, c)
 
+        if row < self.widget_start or row > self.widget_stop:
+            return False
         start_col = start_byte_column(start)
         stop_col = stop_byte_column(stop)
         start_index = column2index(row, start_col)
@@ -251,9 +342,10 @@ class BytesTable(ttk.Labelframe):
         stop_index = column2index(row, stop_col)
         self.text.tag_add(self.MARK_TAG_NAME, start_index, stop_index)
         self.mark_ranges.append((start_index, stop_index))
+        return True
 
     def mark_bytes(self, start, stop):
-        self.text.configure(state=Tk.NORMAL)
+        self._update_begin()
         if len(self.mark_ranges) > 0:
             for (start_index, stop_index) in self.mark_ranges:
                 self.text.tag_remove(self.MARK_TAG_NAME, start_index, stop_index)
@@ -281,8 +373,9 @@ class BytesTable(ttk.Labelframe):
             else:
                 assert start % self.BYTES_PER_ROW == 0 and stop % self.BYTES_PER_ROW == 0
                 for row in xrange(start_row, stop_row):
-                    self._mark_one_row(row, 0, self.BYTES_PER_ROW)
-        self.text.configure(state=Tk.DISABLED)
+                    if not self._mark_one_row(row, 0, self.BYTES_PER_ROW):
+                        break
+        self._update_end()
 
     def scroll_to(self, start_row, stop_row):
         """
