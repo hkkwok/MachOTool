@@ -173,17 +173,15 @@ class BytesTable(ttk.Labelframe):
         self.yscroll = AutoHideScrollbar(self, orient=Tk.VERTICAL, command=self.yview)
         self.yscroll.pack(side=Tk.RIGHT, fill=Tk.Y)
 
-        self.text.configure(yscrollcommand=self.yset)
+        self.text.configure()
         self.end_offset = None
         self.mark_ranges = None
         self.rows = None
         self.lines = None
         self.bytes = None
         self.base_offset = None
-
         self.widget_start = None
         self.widget_stop = None
-
         self.clear()
 
     def clear(self):
@@ -214,40 +212,22 @@ class BytesTable(ttk.Labelframe):
         self.text.configure(state=Tk.DISABLED)
 
     def yview(self, *args):
-        self.text.yview(*args)
-
-    def yset(self, start, stop):
-        start_row = int(float(start) * self.rows)
-        stop_row = min(int(float(stop) * self.rows + 0.5), start_row + self.widget_rows())
-        self.yscroll.set(start, stop)
+        print 'YVIEW', args
+        start_row = self._normalized_to_row(args[1])
+        stop_row = start_row + self.widget_rows()
+        delta = stop_row - self.rows - 1
+        if delta > 0:
+            start_row -= delta
+            stop_row -= delta
 
         if start_row == self.widget_start and stop_row == self.widget_stop:
             return
 
-        self._update_begin()
         assert self.widget_start <= self.widget_stop
         assert start_row <= stop_row
-        if self.widget_start is None:
-            assert self.widget_stop is None
-            self._show_rows(start_row, stop_row)
-        elif self.widget_stop <= start_row or stop_row <= self.widget_start:
-            # The new and old regions are disjoint
-            self._hide_rows(self.widget_start, self.widget_stop)
-            self._show_rows(start_row, stop_row)
-        else:
-            if start_row < self.widget_start:
-                self._show_rows(start_row, self.widget_start - 1)
-            elif start_row > self.widget_start:
-                self._hide_rows(self.widget_start, start_row - 1)
-            if stop_row < self.widget_stop:
-                self._hide_rows(stop_row + 1, self.widget_stop)
-            elif stop_row > self.widget_stop:
-                self._show_rows(self.widget_stop + 1, stop_row)
 
-        self.widget_start = start_row
-        self.widget_stop = stop_row
-        self._update_end()
-        self.update_idletasks()
+        self._show(start_row, stop_row)
+        self.yscroll.set(self._row_to_normalized(start_row), self._row_to_normalized(stop_row))
 
     @staticmethod
     def _printable_char(ch):
@@ -275,8 +255,8 @@ class BytesTable(ttk.Labelframe):
         chars = self._printable(bytes_)
         if len(chars) != self.BYTES_PER_ROW:
             chars += ' ' * (self.BYTES_PER_ROW - len(chars))
-        line = start_addr + '    ' + ' '.join(hexes) + '    ' + chars
-        assert len(line) == 87
+        line = start_addr + '    ' + ' '.join(hexes) + '    ' + chars + '\n'
+        assert len(line) == 88
         return line
 
     def _offset_to_row(self, offset):
@@ -285,34 +265,52 @@ class BytesTable(ttk.Labelframe):
     def _offset_to_row_roundup(self, offset):
         return (offset + self.BYTES_PER_ROW - 1) / self.BYTES_PER_ROW
 
+    def _normalized_to_row(self, normalized):
+        return int(float(normalized) * self.rows)
+
+    def _normalized_to_row_roundup(self, normalized):
+        return int(float(normalized) * self.rows + 0.5)
+
+    def _row_to_normalized(self, row):
+        return str(float(row) / self.rows)
+
+    def _validate_rows(self, start, stop):
+        assert self.widget_start <= start <= self.widget_stop
+        assert self.widget_start <= stop <= self.widget_stop
+
     def add_bytes(self, bytes_, base_offset=0):
         self.base_offset = base_offset
         self.bytes = bytes_
         self.end_offset = len(bytes_)
         self.rows = self._offset_to_row_roundup(self.end_offset)
-
-        pi = ProgressIndicator('showing bytes...', 8192)
-        self._update_begin()
-        for row in xrange(1, self.rows+1):
-            self.text.insert('%d.0' % row, '\n')
-            pi.click()
-        pi.done()
-        self._update_end()
-
-    def _show_row(self, row):
-        line = self._format_row(row)
-        self.text.insert('%d.0' % (row + 1), line)
+        self._show(0, self.widget_rows())
 
     def _show_rows(self, start, stop):
-        for row in xrange(start, stop+1):
-            self._show_row(row)
-
-    def _hide_row(self, row):
-        self.text.delete('%d.0' % (row + 1), '%d.87' % (row + 1))
+        self._validate_rows(start, stop)
+        for row in xrange(start, stop + 1):
+            line = self._format_row(row)
+            real_row = row - self.widget_start + 1
+            self.text.insert('%d.0' % real_row, line)
 
     def _hide_rows(self, start, stop):
-        for row in xrange(start, stop+1):
-            self._hide_row(row)
+        self._validate_rows(start, stop)
+        real_start = start - self.widget_start + 1
+        real_stop = stop - self.widget_start + 1
+        self.text.delete('%d.0' % real_start, '%d.88' % real_stop)
+
+    def _update_widget_rows(self, start, stop):
+        self.widget_start = start
+        self.widget_stop = stop
+
+    def _show(self, start_row, stop_row):
+        print 'SHOW: (%s, %s) -> (%s, %s)' % \
+              (str(self.widget_start), str(self.widget_stop), str(start_row), str(stop_row))
+        self._update_begin()
+        self.text.delete('1.0', 'end')
+        self._update_widget_rows(start_row, stop_row)
+        self._show_rows(start_row, stop_row)
+        self.update_idletasks()
+        self._update_end()
 
     def _mark_one_row(self, row, start, stop):
         def start_byte_column(offset):
