@@ -164,6 +164,7 @@ class BytesTable(ttk.Labelframe):
     def __init__(self, parent):
         ttk.Labelframe.__init__(self, parent, text='Bytes')
         self.text = Tk.Text(self, wrap=Tk.NONE)
+        self.text.bind('<MouseWheel>', self._text_scrolled)
         self.text.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
         if self.FONT is None:
             self.FONT = tkFont.Font(family=self.FONT_FAMILY, size=14, weight='normal')
@@ -177,11 +178,11 @@ class BytesTable(ttk.Labelframe):
         self.end_offset = None
         self.mark_ranges = None
         self.rows = None
-        self.lines = None
         self.bytes = None
         self.base_offset = None
-        self.widget_start = None
-        self.widget_stop = None
+        self.widget_start = None  # starting visible row
+        self.widget_stop = None   # stopping (inclusive) visible row
+        self.marked_bytes = MarkedBytes()
         self.clear()
 
     def clear(self):
@@ -194,6 +195,7 @@ class BytesTable(ttk.Labelframe):
         self.text.configure(state=Tk.DISABLED)
         self.widget_start = None
         self.widget_stop = None
+        self.marked_bytes.reset()
 
     def clear_states(self):
         self.end_offset = None
@@ -211,23 +213,59 @@ class BytesTable(ttk.Labelframe):
     def _update_end(self):
         self.text.configure(state=Tk.DISABLED)
 
+    def _text_scrolled(self, event):
+        adjustment = event.delta
+        if adjustment > 0:
+            adjustment = 1
+        elif adjustment < 0:
+            adjustment = -1
+        self.yview('scroll', adjustment, 'units')
+
     def yview(self, *args):
-        print 'YVIEW', args
-        start_row = self._normalized_to_row(args[1])
-        stop_row = start_row + self.widget_rows()
+        self._yview(False, *args)
+
+    def _yview(self, forced_update, *args):
+        #print 'YVIEW', args
+        action = args[0]
+        if action == 'moveto':
+            start_row = self._normalized_to_row(args[1])
+            stop_row = start_row + self.widget_rows()
+        elif action == 'scroll':
+            amount = int(args[1])
+            unit = args[2]
+            if unit == 'page':
+                adjustment = self.widget_rows() - 1
+            elif unit == 'units':
+                adjustment = 1
+            else:
+                print 'Unknown unit %s' % unit
+                return
+            adjustment *= amount
+            start_row = self.widget_start + adjustment
+            stop_row = self.widget_stop + adjustment
+        else:
+            print 'Unknown action %s' % action
+            return
+        # Check we scroll past the end. Move it up
         delta = stop_row - self.rows - 1
         if delta > 0:
             start_row -= delta
             stop_row -= delta
+        # Check we scroll past the beginning. Move it down
+        delta = 0 - start_row
+        if delta > 0:
+            start_row += delta
+            stop_row += delta
 
-        if start_row == self.widget_start and stop_row == self.widget_stop:
+        if not forced_update and start_row == self.widget_start and stop_row == self.widget_stop:
             return
 
         assert self.widget_start <= self.widget_stop
         assert start_row <= stop_row
 
         self._show(start_row, stop_row)
-        self.yscroll.set(self._row_to_normalized(start_row), self._row_to_normalized(stop_row))
+        self.yscroll.set(str(self._row_to_normalized(start_row)),
+                         str(self._row_to_normalized(stop_row)))
 
     @staticmethod
     def _printable_char(ch):
@@ -272,7 +310,7 @@ class BytesTable(ttk.Labelframe):
         return int(float(normalized) * self.rows + 0.5)
 
     def _row_to_normalized(self, row):
-        return str(float(row) / self.rows)
+        return float(row) / self.rows
 
     def _validate_rows(self, start, stop):
         assert self.widget_start <= start <= self.widget_stop
@@ -291,6 +329,9 @@ class BytesTable(ttk.Labelframe):
             line = self._format_row(row)
             real_row = row - self.widget_start + 1
             self.text.insert('%d.0' % real_row, line)
+            start_col, stop_col = self.marked_bytes.marked_range(row)
+            if start_col is not None:
+                self._mark_one_row(row, start_col, stop_col)
 
     def _hide_rows(self, start, stop):
         self._validate_rows(start, stop)
@@ -303,8 +344,8 @@ class BytesTable(ttk.Labelframe):
         self.widget_stop = stop
 
     def _show(self, start_row, stop_row):
-        print 'SHOW: (%s, %s) -> (%s, %s)' % \
-              (str(self.widget_start), str(self.widget_stop), str(start_row), str(stop_row))
+        #print 'SHOW: (%s, %s) -> (%s, %s)' % \
+        #      (str(self.widget_start), str(self.widget_stop), str(start_row), str(stop_row))
         self._update_begin()
         self.text.delete('1.0', 'end')
         self._update_widget_rows(start_row, stop_row)
@@ -323,7 +364,7 @@ class BytesTable(ttk.Labelframe):
             return 71 + offset
 
         def column2index(r, c):
-            return '%d.%d' % (1 + r, c)
+            return '%d.%d' % (1 + r - self.widget_start, c)
 
         if row < self.widget_start or row > self.widget_stop:
             return False
@@ -343,50 +384,52 @@ class BytesTable(ttk.Labelframe):
         return True
 
     def mark_bytes(self, start, stop):
-        self._update_begin()
-        if len(self.mark_ranges) > 0:
-            for (start_index, stop_index) in self.mark_ranges:
-                self.text.tag_remove(self.MARK_TAG_NAME, start_index, stop_index)
-            self.mark_ranges = list()
+        self.marked_bytes.set(start, stop)
+        self._scroll_to(self.marked_bytes.start_row, self.marked_bytes.stop_row)
 
-        start_row, start_col = divmod(start, self.BYTES_PER_ROW)
-        stop_row, stop_col = divmod(stop, self.BYTES_PER_ROW)
-        self.scroll_to(start_row, stop_row)
-
-        if start_row == stop_row:
-            # Special case - just one row
-            self._mark_one_row(start_row, start_col, stop_col)
-        else:
-            if start_col != 0:
-                # Process prologue
-                self._mark_one_row(start_row, start_col, self.BYTES_PER_ROW)
-                start = (start_row + 1) * self.BYTES_PER_ROW
-                start_row += 1
-            if stop_col != 0:
-                # Process epilogue
-                self._mark_one_row(stop_row, 0, stop_col)
-                stop -= stop_col
-            if start == stop:
-                pass  # special case two incomplete rows
-            else:
-                assert start % self.BYTES_PER_ROW == 0 and stop % self.BYTES_PER_ROW == 0
-                for row in xrange(start_row, stop_row):
-                    if not self._mark_one_row(row, 0, self.BYTES_PER_ROW):
-                        break
-        self._update_end()
-
-    def scroll_to(self, start_row, stop_row):
+    def _scroll_to(self, start_row, stop_row):
         """
         Scroll a range of lines from start_row to stop_row (both inclusive). It tries to center
         the line range. However, if the line range is larger than text view, it keeps 10% (of the
         text view) gap on the top so that one can clearly see the beginning of the selected lines.
         """
-        (view_top, view_bottom) = self.yscroll.get()
-        mark_top = float(start_row) / float(self.rows)
-        mark_bottom = float(stop_row) / float(self.rows)
+        mark_top = self._row_to_normalized(start_row)
+        mark_bottom = self._row_to_normalized(stop_row)
 
-        view_size = view_bottom - view_top
+        view_size = self._row_to_normalized(self.widget_rows())
         mark_size = mark_bottom - mark_top
 
         gap = max(0.2 * view_size, view_size - mark_size)
-        self.text.yview('moveto', max(0.0, mark_top - 0.5 * gap))
+        self._yview(True, 'moveto', str(max(0.0, mark_top - 0.5 * gap)))
+
+
+class MarkedBytes(object):
+    def __init__(self):
+        self.start_row = None
+        self.start_col = None
+        self.stop_row = None
+        self.stop_col = None
+
+    def reset(self):
+        self.start_row = None
+        self.start_col = None
+        self.stop_row = None
+        self.stop_col = None
+
+    def set(self, start, stop):
+        self.start_row, self.start_col = divmod(start, BytesTable.BYTES_PER_ROW)
+        self.stop_row, self.stop_col = divmod(stop, BytesTable.BYTES_PER_ROW)
+
+    def is_marked(self, row):
+        return self.start_row <= row <= self.stop_row
+
+    def marked_range(self, row):
+        if not self.is_marked(row):
+            return None, None
+        start_col = 0
+        stop_col = BytesTable.BYTES_PER_ROW
+        if self.start_row == row:
+            start_col = self.start_col
+        if self.stop_row == row:
+            stop_col = self.stop_col
+        return start_col, stop_col
