@@ -32,8 +32,8 @@ from non_headers.segment_block import SegmentBlock
 from non_headers.section_block import SectionBlock, DataSection, TextSection, CstringSection, ObjCMethodNameSection
 from non_headers.cstring import Cstring, ObjCMethodName
 from non_headers.linkedit_data import LinkEditData
-from non_headers.symbol_table_block import SymbolTableBlock
-from non_headers.symtab_string import SymtabString
+from non_headers.symbol_table_block import SymbolTableBlock, SymbolStringTableBlock
+from non_headers.symbol_table_block import IndirectSymbolTableBlock, ExtRefSymbolTableBlock
 
 
 class SegmentDescriptor(object):
@@ -172,7 +172,7 @@ class LoadCommandParser(BytesRangeParser):
             DyldInfoParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc == 'LC_SYMTAB':
             assert isinstance(lc, SymtabCommand)
-            SymtabParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
+            SymtabParser(self.bytes_range, self.mach_o).parse(lc)
         elif cmd_desc == 'LC_DYSYMTAB':
             assert isinstance(lc, DysymtabCommand)
             DysymtabParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
@@ -307,16 +307,9 @@ class SegmentParser(BytesRangeParser):
 
 
 class LinkEditParser(BytesRangeParser):
-    def __init__(self, linkedit_br, arch_width):
+    def __init__(self, linkedit_br, mach_o):
         super(LinkEditParser, self).__init__(linkedit_br)
-        self.linkedit_start = self.bytes_range.abs_start()
-        if arch_width == 32:
-            self.nlist_class = Nlist
-        elif arch_width == 64:
-            self.nlist_class = Nlist64
-        else:
-            raise ValueError()
-        self.nlist_size = self.nlist_class.get_size()
+        self.mach_o = mach_o
 
     def add_section(self, abs_off, length, data=None):
         if length == 0:
@@ -326,8 +319,8 @@ class LinkEditParser(BytesRangeParser):
 
 
 class DyldInfoParser(LinkEditParser):
-    def __init__(self, linkedit_br, arch_width):
-        super(DyldInfoParser, self).__init__(linkedit_br, arch_width)
+    def __init__(self, linkedit_br, mach_o):
+        super(DyldInfoParser, self).__init__(linkedit_br, mach_o)
 
     def parse(self, dyld_info_command):
         if dyld_info_command is None:
@@ -347,8 +340,15 @@ class DyldInfoParser(LinkEditParser):
 
 
 class SymtabParser(LinkEditParser):
-    def __init__(self, linkedit_br, arch_width):
-        super(SymtabParser, self).__init__(linkedit_br, arch_width)
+    def __init__(self, bytes_range, mach_o):
+        super(SymtabParser, self).__init__(bytes_range, mach_o)
+        if self.mach_o.arch_width == 32:
+            self.nlist_class = Nlist
+        elif self.mach_o.arch_width == 64:
+            self.nlist_class = Nlist64
+        else:
+            raise ValueError()
+        self.nlist_size = self.nlist_class.get_size()
 
     @staticmethod
     def _find_string(bytes_, start):
@@ -368,10 +368,10 @@ class SymtabParser(LinkEditParser):
             progress = None
 
         # Add nlist entries and string table section.
-        sym_br = self.add_section(symtab_command.symoff, symtab_command.nsyms * self.nlist_size,
-                                  data=SymbolTableBlock('%d symbol entries' % symtab_command.nsyms))
-        str_br = self.add_section(symtab_command.stroff, symtab_command.strsize,
-                                  data=SymbolTableBlock('string table'))
+        sym_tab = SymbolTableBlock(symtab_command.nsyms)
+        sym_str_tab = SymbolStringTableBlock()
+        sym_br = self.add_section(symtab_command.symoff, symtab_command.nsyms * self.nlist_size, data=sym_tab)
+        self.add_section(symtab_command.stroff, symtab_command.strsize, data=sym_str_tab)
         str_bytes_ = self.bytes_range.bytes(symtab_command.stroff,
                                             symtab_command.stroff + symtab_command.strsize)
 
@@ -384,7 +384,17 @@ class SymtabParser(LinkEditParser):
             stop = start + self.nlist_size
             bytes_ = sym_br.bytes(start, stop)
             nlist = self.nlist_class(bytes_)
-            sym_br.add_subrange(start, self.nlist_size, data=nlist)
+            # The original code was:
+            #
+            # sym_br.add_subrange(start, self.nlist_size, data=nlist)
+            #
+            # The problem is that for a real iOS app, there can be hundreds of thousands if not
+            # millions of symbols and these Nlist and BytesRange objects consume a lot of memory.
+            # (Each python object with attribute seems to consume at least 300B.)
+            #
+            # The solution is to deviate the framework and save the values of these nlist headers
+            # into a big list.
+            sym_tab.add(nlist)
             if nlist.n_strx == 0:
                 # From nlist.h:
                 #
@@ -393,20 +403,26 @@ class SymtabParser(LinkEditParser):
                 # names must not have a zero string index.  This is bit historical information
                 # that has never been well documented.
                 pass
-            elif nlist.n_strx not in str_table:
+            elif nlist.n_strx not in self.mach_o.symbol_string_table:
                 (sym_name, total_len) = self._find_string(str_bytes_, nlist.n_strx)
                 try:
-                    str_br.add_subrange(nlist.n_strx, total_len, data=SymtabString(nlist.n_strx, sym_name))
+                    # Original code is:
+                    #
+                    # str_br.add_subrange(nlist.n_strx, total_len, data=SymtabString(nlist.n_strx, sym_name))
+                    #
+                    # Again, we avoid creating the byte range in order to reduce memory consumption.
+                    sym_str_tab.add(nlist.n_strx, sym_name)
                     str_table[nlist.n_strx] = total_len
                 except ValueError as e:
                     print 'WARNING: fail to create symtab string subrange (%s)' % str(e)
+        sym_tab.correlate_string_table(sym_str_tab)
         if progress is not None:
             progress.done()
 
 
 class DysymtabParser(LinkEditParser):
-    def __init__(self, linkedit_br, arch_width):
-        super(DysymtabParser, self).__init__(linkedit_br, arch_width)
+    def __init__(self, linkedit_br, mach_o):
+        super(DysymtabParser, self).__init__(linkedit_br, mach_o)
 
     def parse(self, dysymtab_command):
         if dysymtab_command is None:
@@ -415,10 +431,10 @@ class DysymtabParser(LinkEditParser):
         self.start = 0
         self.cmd_size = len(self.bytes_range)
         self.add_section(dysymtab_command.extrefsymoff, dysymtab_command.nextrefsyms * 4,
-                         data=SymbolTableBlock('external references'))
+                         data=ExtRefSymbolTableBlock(dysymtab_command.nextrefsyms))
         indirect_sym_size = 4
         sym_br = self.add_section(dysymtab_command.indirectsymoff, dysymtab_command.nindirectsyms * indirect_sym_size,
-                                  data=SymbolTableBlock('%d indirect symbols' % dysymtab_command.nindirectsyms))
+                                  data=IndirectSymbolTableBlock(dysymtab_command.nindirectsyms))
         # Parse all nlist entries
         for idx in xrange(dysymtab_command.nindirectsyms):
             start = idx * indirect_sym_size
@@ -431,14 +447,8 @@ class DysymtabParser(LinkEditParser):
 
 
 class LinkeditDataParser(LinkEditParser):
-    def __init__(self, linkedit_br, arch_width):
-        super(LinkeditDataParser, self).__init__(linkedit_br, arch_width)
-        if arch_width == 32:
-            self.nlist_size = Nlist.get_size()
-        elif arch_width == 64:
-            self.nlist_size = Nlist64.get_size()
-        else:
-            raise ValueError()
+    def __init__(self, linkedit_br, mach_o):
+        super(LinkeditDataParser, self).__init__(linkedit_br, mach_o)
 
     def parse(self, linkedit_data_command):
         assert isinstance(linkedit_data_command, LinkeditDataCommand)

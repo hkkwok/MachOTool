@@ -8,11 +8,10 @@ from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.bytes_range import BytesRange
 from utils.header import NullTerminatedStringField
-from mach_o.headers.nlist import Nlist, Nlist64
+from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
-from mach_o.non_headers.symtab_string import SymtabString
+from mach_o.non_headers.symbol_table_block import SymbolTableBlock
 from mach_o.headers.mach_header import MachHeader, MachHeader64
-from collections import OrderedDict
 
 
 class SymbolWindow(WindowTab):
@@ -72,20 +71,9 @@ class SymbolWindow(WindowTab):
         assert start is not None and stop is not None and level is not None  # get rid of pycharm warnings
         if isinstance(br.data, (MachHeader, MachHeader64)):
             self.mach_o.append(br.data)
-            self.symbol_tables.append(OrderedDict())
-        elif isinstance(br.data, (Nlist, Nlist64)):
-            nlist = br.data
-            if nlist.n_strx in self.symbol_tables[-1]:
-                self.symbol_tables[-1][nlist.n_strx] = (nlist, self.symbol_tables[-1][nlist.n_strx][1])
-            else:
-                self.symbol_tables[-1][nlist.n_strx] = (nlist, None)
-        elif isinstance(br.data, SymtabString):
-            symtab_str = br.data
-            if symtab_str.offset in self.symbol_tables[-1]:
-                self.symbol_tables[-1][symtab_str.offset] = (self.symbol_tables[-1][symtab_str.offset][0],
-                                                             symtab_str.string)
-            else:
-                self.symbol_tables[-1][symtab_str.offset] = (None, symtab_str.string)
+            self.symbol_tables.append(list())
+        elif isinstance(br.data, SymbolTableBlock):
+            self.symbol_tables[-1].append(br.data)
         elif isinstance(br.data, (Section, Section64)):
             self.sections.append(br.data)
 
@@ -100,35 +88,41 @@ class SymbolWindow(WindowTab):
         filter_pattern = self.search_entry.get()
 
         mach_o_idx = 0
-        for symbol_table in self.symbol_tables:
+        for symbol_table_list in self.symbol_tables:
             mach_o_hdr = self.mach_o[mach_o_idx]
             cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
             mach_o_id = self.table.add('', mach_o_idx, ('Mach-O', cpu_type, '', '', '', '', ''))
             symbol_idx = 0
-            for (offset, (symbol, symbol_name)) in symbol_table.items():
-                if filter_pattern not in symbol_name:
-                    continue
-                assert isinstance(symbol, (Nlist, Nlist64))
-                if (symbol_idx % 2) == 0:
-                    kwargs = dict()
-                else:
-                    kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
-                if symbol.n_sect == 0:
-                    section_desc = ''
-                else:
-                    this_section = self.sections[symbol.n_sect]
-                    section_desc = '%s, %s' % \
-                                   (NullTerminatedStringField.get_string(this_section.segname),
-                                    NullTerminatedStringField.get_string(this_section.sectname))
-                self.table.add(mach_o_id, symbol_idx,
-                               (str(symbol.index),
-                                section_desc,
-                                symbol.type(),
-                                self._y_or_n(symbol.is_global()),
-                                self._y_or_n(symbol.is_defined()),
-                                self._y_or_n(symbol.is_lazy()),
-                                symbol_name), **kwargs)
-                symbol_idx += 1
+            for symbol_table in symbol_table_list:
+                for (index, n_strx, n_type, n_sect, n_desc, n_value, symbol_name) in symbol_table.symbols:
+                    if filter_pattern not in symbol_name:
+                        continue
+                    symbol = Nlist64(index=index,
+                                     n_strx=n_strx,
+                                     n_type=n_type,
+                                     n_sect=n_sect,
+                                     n_desc=n_desc,
+                                     n_value=n_value)
+                    if (symbol_idx % 2) == 0:
+                        kwargs = dict()
+                    else:
+                        kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
+                    if symbol.n_sect == 0:
+                        section_desc = ''
+                    else:
+                        this_section = self.sections[symbol.n_sect]
+                        section_desc = '%s, %s' % \
+                                       (NullTerminatedStringField.get_string(this_section.segname),
+                                        NullTerminatedStringField.get_string(this_section.sectname))
+                    self.table.add(mach_o_id, symbol_idx,
+                                   (str(symbol.index),
+                                    section_desc,
+                                    symbol.type(),
+                                    self._y_or_n(symbol.is_global()),
+                                    self._y_or_n(symbol.is_defined()),
+                                    self._y_or_n(symbol.is_lazy()),
+                                    symbol_name), **kwargs)
+                    symbol_idx += 1
             if len(self.table.tree.get_children(mach_o_id)) == 0:
                 self.table.tree.delete(mach_o_id)
             else:

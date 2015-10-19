@@ -168,7 +168,11 @@ class IndexedHeader(Header):
             cls.reset_index()
 
     def __init__(self, name, bytes_=None, **kwargs):
-        self.index = self._next_index()
+        if 'index' not in kwargs:
+            self.index = self._next_index()
+        else:
+            self.index = kwargs['index']
+            del kwargs['index']
         super(IndexedHeader, self).__init__(name + '[%d]' % self.index, bytes_, **kwargs)
 
 
