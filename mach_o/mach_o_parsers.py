@@ -32,8 +32,8 @@ from non_headers.segment_block import SegmentBlock
 from non_headers.section_block import SectionBlock, DataSection, TextSection, CstringSection, ObjCMethodNameSection
 from non_headers.cstring import Cstring, ObjCMethodName
 from non_headers.linkedit_data import LinkEditData
-from non_headers.symbol_table_block import SymbolTableBlock, SymbolStringTableBlock
-from non_headers.symbol_table_block import IndirectSymbolTableBlock, ExtRefSymbolTableBlock
+from non_headers.symbol_table_block import SymbolTable, SymbolStringTable
+from non_headers.symbol_table_block import IndirectSymbolTable, ExtRefSymbolTable
 
 
 class SegmentDescriptor(object):
@@ -368,8 +368,8 @@ class SymtabParser(LinkEditParser):
             progress = None
 
         # Add nlist entries and string table section.
-        sym_tab = SymbolTableBlock(symtab_command.nsyms)
-        sym_str_tab = SymbolStringTableBlock()
+        sym_tab = SymbolTable(symtab_command.nsyms)
+        sym_str_tab = SymbolStringTable()
         sym_br = self.add_section(symtab_command.symoff, symtab_command.nsyms * self.nlist_size, data=sym_tab)
         self.add_section(symtab_command.stroff, symtab_command.strsize, data=sym_str_tab)
         str_bytes_ = self.byte_range.bytes(symtab_command.stroff,
@@ -426,10 +426,10 @@ class DysymtabParser(LinkEditParser):
         self.start = 0
         self.cmd_size = len(self.byte_range)
         self.add_section(dysymtab_command.extrefsymoff, dysymtab_command.nextrefsyms * 4,
-                         data=ExtRefSymbolTableBlock(dysymtab_command.nextrefsyms))
+                         data=ExtRefSymbolTable(dysymtab_command.nextrefsyms))
         indirect_sym_size = 4
         sym_br = self.add_section(dysymtab_command.indirectsymoff, dysymtab_command.nindirectsyms * indirect_sym_size,
-                                  data=IndirectSymbolTableBlock(dysymtab_command.nindirectsyms))
+                                  data=IndirectSymbolTable(dysymtab_command.nindirectsyms))
         # Parse all nlist entries
         for idx in xrange(dysymtab_command.nindirectsyms):
             start = idx * indirect_sym_size

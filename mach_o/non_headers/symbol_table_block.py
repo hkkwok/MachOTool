@@ -2,7 +2,7 @@ from utils.header import Header, NonEncodingField
 from utils.commafy import commafy
 
 
-class SymbolTableBaseBlock(Header):
+class SymbolTableBase(Header):
     FIELDS =(
         NonEncodingField('desc'),
     )
@@ -12,10 +12,10 @@ class SymbolTableBaseBlock(Header):
             desc = '%s %s' % (commafy(num_entries), entry_type)
         else:
             desc = entry_type
-        super(SymbolTableBaseBlock, self).__init__('SymbolTable: %s' % desc, desc=desc)
+        super(SymbolTableBase, self).__init__('SymbolTable: %s' % desc, desc=desc)
 
 
-class SymbolTableBlock(SymbolTableBaseBlock):
+class SymbolTable(SymbolTableBase):
     SYM_INDEX = 0
     N_STRX = 1
     N_TYPE = 2
@@ -25,7 +25,7 @@ class SymbolTableBlock(SymbolTableBaseBlock):
     SYM_NAME = 6
 
     def __init__(self, num_symbols):
-        super(SymbolTableBlock, self).__init__('symbol entries', num_symbols)
+        super(SymbolTable, self).__init__('symbol entries', num_symbols)
         self.symbols = list()
 
     def add(self, nlist):
@@ -33,7 +33,7 @@ class SymbolTableBlock(SymbolTableBaseBlock):
         self.symbols.append((idx, nlist.n_strx, nlist.n_type, nlist.n_sect, nlist.n_desc, nlist.n_value, None))
 
     def correlate_string_table(self, sym_str_tab):
-        assert isinstance(sym_str_tab, SymbolStringTableBlock)
+        assert isinstance(sym_str_tab, SymbolStringTable)
         for idx in xrange(len(self.symbols)):
             n_strx = self.symbols[idx][self.N_STRX]
             if n_strx == 0:
@@ -43,20 +43,20 @@ class SymbolTableBlock(SymbolTableBaseBlock):
                 self.symbols[idx] = self.symbols[idx][:self.SYM_NAME] + (sym_name,)
 
 
-class SymbolStringTableBlock(SymbolTableBaseBlock):
+class SymbolStringTable(SymbolTableBase):
     def __init__(self):
-        super(SymbolStringTableBlock, self).__init__('string table')
+        super(SymbolStringTable, self).__init__('string table')
         self.symbol_strings = dict()
 
     def add(self, n_strx, s):
         self.symbol_strings[n_strx] = s
 
 
-class IndirectSymbolTableBlock(SymbolTableBaseBlock):
+class IndirectSymbolTable(SymbolTableBase):
     def __init__(self, num_indirect_symbols):
-        super(IndirectSymbolTableBlock, self).__init__('indirect symbols', num_indirect_symbols)
+        super(IndirectSymbolTable, self).__init__('indirect symbols', num_indirect_symbols)
 
 
-class ExtRefSymbolTableBlock(SymbolTableBaseBlock):
+class ExtRefSymbolTable(SymbolTableBase):
     def __init__(self, num_ext_ref):
-        super(ExtRefSymbolTableBlock, self).__init__('external references', num_ext_ref)
+        super(ExtRefSymbolTable, self).__init__('external references', num_ext_ref)

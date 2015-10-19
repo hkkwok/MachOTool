@@ -10,7 +10,7 @@ from utils.byte_range import ByteRange
 from utils.header import NullTerminatedStringField
 from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
-from mach_o.non_headers.symbol_table_block import SymbolTableBlock
+from mach_o.non_headers.symbol_table_block import SymbolTable
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 
 
@@ -72,7 +72,7 @@ class SymbolWindow(WindowTab):
         if isinstance(br.data, (MachHeader, MachHeader64)):
             self.mach_o.append(br.data)
             self.symbol_tables.append(list())
-        elif isinstance(br.data, SymbolTableBlock):
+        elif isinstance(br.data, SymbolTable):
             self.symbol_tables[-1].append(br.data)
         elif isinstance(br.data, (Section, Section64)):
             self.sections.append(br.data)
