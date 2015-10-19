@@ -7,7 +7,7 @@ except ImportError:
 
 from tree_table import TreeTable
 from window_tab import WindowTab
-from utils.bytes_range import BytesRange
+from utils.byte_range import ByteRange
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from mach_o.non_headers.section_block import CstringSection, ObjCMethodNameSection
 
@@ -42,18 +42,18 @@ class StringWindow(WindowTab):
         self.clear_states()
 
     def clear_states(self):
-        self.bytes_range = None
+        self.byte_range = None
         self.string_sections = list()
         self.mach_o = list()
 
     def clear_ui(self):
         self.table.clear()
 
-    def load(self, bytes_range, bytes_):
-        assert isinstance(bytes_range, BytesRange)
+    def load(self, byte_range, bytes_):
+        assert isinstance(byte_range, ByteRange)
         self.clear_states()
-        bytes_range.iterate(self._parse)
-        self.bytes_range = bytes_range
+        byte_range.iterate(self._parse)
+        self.byte_range = byte_range
         self.display()
 
     def _parse(self, br, start, stop, level):

@@ -1,5 +1,5 @@
 import unittest
-from utils.bytes_range import BytesRange
+from utils.byte_range import ByteRange
 
 
 class TestBytesRange(unittest.TestCase):
@@ -7,16 +7,16 @@ class TestBytesRange(unittest.TestCase):
         self.assertEqual(expected_start, subrange.start)
         self.assertEqual(expected_stop, subrange.stop)
 
-    def check_subranges(self, bytes_range, *expected):
+    def check_subranges(self, byte_range, *expected):
         expected_len = len(expected)
-        self.assertEqual(expected_len, len(bytes_range.subranges))
+        self.assertEqual(expected_len, len(byte_range.subranges))
         for idx in xrange(expected_len):
-            self.check_subrange(bytes_range.subranges[idx], *expected[idx])
+            self.check_subrange(byte_range.subranges[idx], *expected[idx])
 
-    def check_partition(self, bytes_range, expected):
-        assert isinstance(bytes_range, BytesRange)
+    def check_partition(self, byte_range, expected):
+        assert isinstance(byte_range, ByteRange)
         assert isinstance(expected, bool)
-        self.assertEqual(expected, bytes_range.does_partition())
+        self.assertEqual(expected, byte_range.does_partition())
 
     def check_partitions(self, *params):
         assert len(params) % 2 == 0
@@ -27,7 +27,7 @@ class TestBytesRange(unittest.TestCase):
         """
         Test add_subrange() method
         """
-        br = BytesRange(0, 1000)
+        br = ByteRange(0, 1000)
 
         self.check_partition(br, True)
         self.assertEqual('<BytesRange:0-1000>', str(br))
@@ -58,7 +58,7 @@ class TestBytesRange(unittest.TestCase):
         """
         Test nested subranges methods
         """
-        br1 = BytesRange(0, 100)
+        br1 = ByteRange(0, 100)
         self.check_partitions(br1, True)
 
         # Add 2nd layer
@@ -97,7 +97,7 @@ class TestBytesRange(unittest.TestCase):
         self.assertEqual((70, 100), br13.abs_range())
 
     def test_errors(self):
-        br = BytesRange(0, 100)
+        br = ByteRange(0, 100)
 
         # Add 2 subranges
         br.add_subrange(20, 10)

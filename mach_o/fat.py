@@ -28,7 +28,7 @@ class Fat(BytesRangeParser):
         # Create Mach-O section for each architecture
         for arch_idx in xrange(self.fat_header.nfat_arch):
             fat_arch = self.archs[arch_idx]
-            mach_o_br = self.bytes_range.add_subrange(fat_arch.offset, fat_arch.size)
+            mach_o_br = self.byte_range.add_subrange(fat_arch.offset, fat_arch.size)
             macho = MachO(mach_o_br)
             mach_o_br.data = macho
 

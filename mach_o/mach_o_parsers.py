@@ -88,8 +88,8 @@ class SectionDescriptor(object):
 
 
 class LoadCommandParser(BytesRangeParser):
-    def __init__(self, bytes_range, mach_o):
-        super(LoadCommandParser, self).__init__(bytes_range)
+    def __init__(self, byte_range, mach_o):
+        super(LoadCommandParser, self).__init__(byte_range)
         self.mach_o = mach_o
 
         self.lc = None
@@ -158,50 +158,50 @@ class LoadCommandParser(BytesRangeParser):
             assert isinstance(lc, DylibCommand)
             self._add_lc_str('dylib_name', lc.dylib_name_offset)  # parse dylib.name
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_ID_DYLINKER', 'LC_LOAD_DYLINKER', 'LC_DYLD_ENVIRONMENT'):
             assert isinstance(lc, DylinkerCommand)
             self._add_lc_str('name', lc.name_offset)  # parse name
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_DYLD_INFO', 'LC_DYLD_INFO_ONLY'):
             assert isinstance(lc, DyldInfoCommand)
             # Record the rebase, different types of bind and export sections
-            DyldInfoParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
+            DyldInfoParser(self.byte_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc == 'LC_SYMTAB':
             assert isinstance(lc, SymtabCommand)
-            SymtabParser(self.bytes_range, self.mach_o).parse(lc)
+            SymtabParser(self.byte_range, self.mach_o).parse(lc)
         elif cmd_desc == 'LC_DYSYMTAB':
             assert isinstance(lc, DysymtabCommand)
-            DysymtabParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
+            DysymtabParser(self.byte_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc in ('LC_FUNCTION_STARTS', 'LC_DATA_IN_CODE', 'LC_DYLIB_CODE_SIGN_DRS', 'LC_CODE_SIGNATURE'):
             assert isinstance(lc, LinkeditDataCommand)
-            LinkeditDataParser(self.bytes_range, self.mach_o.arch_width).parse(lc)
+            LinkeditDataParser(self.byte_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc == 'LC_SUB_FRAMEWORK':
             assert isinstance(lc, SubFrameworkCommand)
             self._add_lc_str('umbrella', lc.umbrella_offset)
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_CLIENT':
             assert isinstance(lc, SubClientCommand)
             self._add_lc_str('client', lc.client_offset)
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_UMBRELLA':
             assert isinstance(lc, SubUmbrellaCommand)
             self._add_lc_str('sub_umbrella', lc.sub_umbrella_offset)
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_LIBRARY':
             assert isinstance(lc, SubLibraryCommand)
             self._add_lc_str('library', lc.library_offset)
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_PREBOUND_DYLIB':
             assert isinstance(lc, PreboundDylibCommand)
@@ -212,7 +212,7 @@ class LoadCommandParser(BytesRangeParser):
             bit_vector = self._get_bytes(num_bytes)
             self.add_subrange('<modules:%s>' % ' '.join(['%02x' % x for x in bit_vector]))
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_TWOLEVEL_HINTS':
             assert isinstance(lc, TwolevelHintsCommand)
@@ -235,7 +235,7 @@ class LoadCommandParser(BytesRangeParser):
             assert isinstance(lc, RpathCommand)
             self._add_lc_str('path', lc.path_offset)
             self._add_trailing_gap('alignment')
-            self.bytes_range.insert_subrange(self.start, self.cmd_size,
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
                                              data=LoadCommandBlock(cmd_desc))
 
         # Account for any trailing gap
@@ -326,7 +326,7 @@ class DyldInfoParser(LinkEditParser):
         if dyld_info_command is None:
             return
         self.start = 0
-        self.cmd_size = len(self.bytes_range)
+        self.cmd_size = len(self.byte_range)
         self.add_section(dyld_info_command.rebase_off, dyld_info_command.rebase_size,
                          data=LinkEditData('rebase section'))
         self.add_section(dyld_info_command.bind_off, dyld_info_command.bind_size,
@@ -340,8 +340,8 @@ class DyldInfoParser(LinkEditParser):
 
 
 class SymtabParser(LinkEditParser):
-    def __init__(self, bytes_range, mach_o):
-        super(SymtabParser, self).__init__(bytes_range, mach_o)
+    def __init__(self, byte_range, mach_o):
+        super(SymtabParser, self).__init__(byte_range, mach_o)
         if self.mach_o.arch_width == 32:
             self.nlist_class = Nlist
         elif self.mach_o.arch_width == 64:
@@ -361,7 +361,7 @@ class SymtabParser(LinkEditParser):
         if symtab_command is None:
             return
         self.start = 0
-        self.cmd_size = len(self.bytes_range)
+        self.cmd_size = len(self.byte_range)
         if ProgressIndicator.ENABLED:
             progress = ProgressIndicator('parsing symbol table...', 4096)
         else:
@@ -372,7 +372,7 @@ class SymtabParser(LinkEditParser):
         sym_str_tab = SymbolStringTableBlock()
         sym_br = self.add_section(symtab_command.symoff, symtab_command.nsyms * self.nlist_size, data=sym_tab)
         self.add_section(symtab_command.stroff, symtab_command.strsize, data=sym_str_tab)
-        str_bytes_ = self.bytes_range.bytes(symtab_command.stroff,
+        str_bytes_ = self.byte_range.bytes(symtab_command.stroff,
                                             symtab_command.stroff + symtab_command.strsize)
 
         # Parse all nlist entries
@@ -424,7 +424,7 @@ class DysymtabParser(LinkEditParser):
             return
         assert isinstance(dysymtab_command, DysymtabCommand)
         self.start = 0
-        self.cmd_size = len(self.bytes_range)
+        self.cmd_size = len(self.byte_range)
         self.add_section(dysymtab_command.extrefsymoff, dysymtab_command.nextrefsyms * 4,
                          data=ExtRefSymbolTableBlock(dysymtab_command.nextrefsyms))
         indirect_sym_size = 4
@@ -448,7 +448,7 @@ class LinkeditDataParser(LinkEditParser):
     def parse(self, linkedit_data_command):
         assert isinstance(linkedit_data_command, LinkeditDataCommand)
         self.start = 0
-        self.cmd_size = len(self.bytes_range)
+        self.cmd_size = len(self.byte_range)
 
         if linkedit_data_command.cmd == LoadCommandCommand.COMMANDS['LC_FUNCTION_STARTS']:
             desc = 'function starts'

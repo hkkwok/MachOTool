@@ -4,7 +4,7 @@ from mach_o.fat import Fat
 from mach_o.headers.fat_header import FatHeader
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from utils.bytes import Bytes
-from utils.bytes_range import BytesRange
+from utils.byte_range import ByteRange
 from utils.ansi_text import AnsiText
 from utils.progress_indicator import ProgressIndicator
 from ui.command_line import CommandLine
@@ -57,20 +57,20 @@ def main():
     else:
         # Read and parse the file
         bytes_ = Bytes(options.file)
-        bytes_range = BytesRange(0, len(bytes_), data=bytes_)
+        byte_range = ByteRange(0, len(bytes_), data=bytes_)
 
         # Determine if the first header is a fat header, mach header or neither
         if MachHeader.is_valid_header(bytes_.bytes) or MachHeader64.is_valid_header(bytes_.bytes):
-            mach_o = MachO(bytes_range)
-            bytes_range.data = mach_o
+            mach_o = MachO(byte_range)
+            byte_range.data = mach_o
         elif FatHeader.is_valid_header(bytes_.bytes):
-            fat = Fat(bytes_range)
-            bytes_range.data = fat
+            fat = Fat(byte_range)
+            byte_range.data = fat
         else:
             print 'ERROR: Cannot find neither fat nor mach header in the beginning of the binary.'
             sys.exit(1)
 
-        cli = CommandLine(bytes_range)
+        cli = CommandLine(byte_range)
         cli.parse_options(options)
         while options.interactive:
             try:

@@ -46,8 +46,8 @@ class CommandLine(object):
         Command('shared-library-table', 'print_shared_libraries_table', 'print all shared libraries used', ''),
     )
 
-    def __init__(self, bytes_range):
-        self.bytes_range = bytes_range
+    def __init__(self, byte_range):
+        self.byte_range = byte_range
 
     def run(self, line):
         # find all commands that match
@@ -83,7 +83,7 @@ class CommandLine(object):
             if level == 0:
                 return ''
             return '%s%d-%d: %s' % (' ' * (level - 1), start, stop, str(br.data))
-        print '\n'.join(self.bytes_range.iterate(format_element))
+        print '\n'.join(self.byte_range.iterate(format_element))
 
     @staticmethod
     def format_header(hdr, trailing_lf=True):
@@ -112,7 +112,7 @@ class CommandLine(object):
             if not isinstance(br.data, (MachHeader, MachHeader64)):
                 return ''
             return self.format_header(br.data)
-        lines = self.bytes_range.iterate(format_mach_header)
+        lines = self.byte_range.iterate(format_mach_header)
         lines = self._list_remove_empty(lines)
         print '\n'.join(lines)
 
@@ -122,7 +122,7 @@ class CommandLine(object):
             if not isinstance(br.data, LoadCommandHeader):
                 return ''
             return self.format_header(br.data)
-        lines = self.bytes_range.iterate(format_load_command)
+        lines = self.byte_range.iterate(format_load_command)
         lines = self._list_remove_empty(lines)
         print '\n'.join(lines)
         print '\n%d load commands' % len(lines)
@@ -133,7 +133,7 @@ class CommandLine(object):
             if not isinstance(br.data, Cstring):
                 return ''
             return br.data.string
-        lines = self.bytes_range.iterate(format_cstring)
+        lines = self.byte_range.iterate(format_cstring)
         lines = self._list_remove_empty(lines)
         n = 1
         for line in lines:
@@ -149,7 +149,7 @@ class CommandLine(object):
             assert parent_br is not None
             assert len(parent_br.subranges) in (2, 3)  # 3rd subrange is for optional alignment padding
             return br.data, parent_br.subranges[1].data
-        subranges = self.bytes_range.iterate(filter_dylib_command)
+        subranges = self.byte_range.iterate(filter_dylib_command)
         dylib_commands = self._list_remove_none(subranges)
         return dylib_commands
 

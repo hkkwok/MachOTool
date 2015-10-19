@@ -2,12 +2,12 @@ from range import Range
 from bytes import Bytes
 
 
-class BytesRange(Range):
+class ByteRange(Range):
     def __init__(self, offset, length, data=None, parent=None):
-        assert isinstance(parent, BytesRange) or parent is None
+        assert isinstance(parent, ByteRange) or parent is None
         if parent is None:
             assert offset == 0
-        super(BytesRange, self).__init__(offset, length)
+        super(ByteRange, self).__init__(offset, length)
         self.subranges = list()
         self.parent = parent
         self.data = data
@@ -27,7 +27,7 @@ class BytesRange(Range):
     def add_subrange(self, offset, length, data=None):
         if offset < 0 or length < 0 or (offset + length > self.stop):
             raise ValueError()
-        new_subrange = BytesRange(offset, offset + length, data, self)
+        new_subrange = ByteRange(offset, offset + length, data, self)
 
         if len(self.subranges) == 0 or new_subrange > self.subranges[-1]:
             # Add new subrange to the end

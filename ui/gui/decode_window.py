@@ -30,11 +30,11 @@ class DecodeWindow(WindowTab):
         self.outer_panedwindow.add(self.inner_panedwindow)
 
         # A bytes range tree on the left
-        self.bytes_range_tree = BytesRangeTree(self.inner_panedwindow)
-        self.bytes_range_tree.select_callback = self.header_selected
-        self.bytes_range_tree.open_callback = self.block_opened
-        self.bytes_range_tree.configure(width=200, height=100, padding=5)
-        self.inner_panedwindow.add(self.bytes_range_tree)
+        self.byte_range_tree = BytesRangeTree(self.inner_panedwindow)
+        self.byte_range_tree.select_callback = self.header_selected
+        self.byte_range_tree.open_callback = self.block_opened
+        self.byte_range_tree.configure(width=200, height=100, padding=5)
+        self.inner_panedwindow.add(self.byte_range_tree)
 
         # A table of header key-value pairs on the right
         self.header_table = FieldValueTable(self.inner_panedwindow)
@@ -48,16 +48,16 @@ class DecodeWindow(WindowTab):
         self.outer_panedwindow.add(self.bytes_table)
 
     def clear(self):
-        self.bytes_range = None
-        self.bytes_range_tree.clear()
+        self.byte_range = None
+        self.byte_range_tree.clear()
         self.header_table.clear()
         self.bytes_table.clear()
 
-    def load(self, bytes_range, bytes_):
+    def load(self, byte_range, bytes_):
         self.clear()
-        self.bytes_range = bytes_range
-        if self.bytes_range is not None:
-            self._add_subtree('', self.bytes_range)
+        self.byte_range = byte_range
+        if self.byte_range is not None:
+            self._add_subtree('', self.byte_range)
         if bytes_ is not None:
             self.bytes_table.add_bytes(bytes_.bytes)
 
@@ -74,18 +74,18 @@ class DecodeWindow(WindowTab):
         for idx in xrange(len(br.subranges)):
             subrange = br.subranges[idx]
             child_id = parent_id + '.%d' % idx
-            if not self.bytes_range_tree.tree.exists(child_id):
-                child_id = self.bytes_range_tree.add(parent_id, idx, values=get_values(subrange))
+            if not self.byte_range_tree.tree.exists(child_id):
+                child_id = self.byte_range_tree.add(parent_id, idx, values=get_values(subrange))
             if len(subrange.subranges) > 0:
                 # if there are subsubranges, just insert 1st row so that the open icon is shown
-                if not self.bytes_range_tree.tree.exists(child_id + '.0'):
+                if not self.byte_range_tree.tree.exists(child_id + '.0'):
                     subsubrange = subrange.subranges[0]
-                    self.bytes_range_tree.add(child_id, 0, values=get_values(subsubrange))
+                    self.byte_range_tree.add(child_id, 0, values=get_values(subsubrange))
             pi.click()
         pi.done()
 
-    def _bytes_range_from_path(self, path):
-        br = self.bytes_range
+    def _byte_range_from_path(self, path):
+        br = self.byte_range
         while len(path) > 0:
             next_idx = path.pop(0)
             br = br.subranges[next_idx]
@@ -93,7 +93,7 @@ class DecodeWindow(WindowTab):
 
     def header_selected(self, path):
         assert len(path) > 0
-        br = self._bytes_range_from_path(path)
+        br = self._byte_range_from_path(path)
         start, stop = br.abs_range()
         if isinstance(br.data, Header):
             self.header_table.set_header(br.data)
@@ -106,12 +106,12 @@ class DecodeWindow(WindowTab):
         offset, size = header.get_offset_size(path[0])
         if offset is None:
             return
-        br = self._bytes_range_from_path(self.bytes_range_tree.selected_path())
+        br = self._byte_range_from_path(self.byte_range_tree.selected_path())
         start = br.abs_start()
         self.bytes_table.mark_bytes(start + offset, start + offset + size)
 
     def block_opened(self, path):
-        br = self.bytes_range
+        br = self.byte_range
         parent_id = ''
         for idx in path:
             br = br.subranges[idx]

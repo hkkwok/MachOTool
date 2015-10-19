@@ -14,7 +14,7 @@ from window_tab import WindowTab
 from decode_window import DecodeWindow
 from string_window import StringWindow
 from symbol_window import SymbolWindow
-from utils.bytes_range import BytesRange, Bytes
+from utils.byte_range import ByteRange, Bytes
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from mach_o.fat import FatHeader, Fat
 from mach_o.mach_o import MachO
@@ -50,7 +50,7 @@ class Gui(object):
         self._add_menu('Views', self.view_items)
         self.parent.config(menu=self.menu_bar)
 
-        self.bytes_range = None
+        self.byte_range = None
         self.bytes = None
 
         self.notebook.bind('<<NotebookTabChanged>>', self.tab_selected)
@@ -79,24 +79,24 @@ class Gui(object):
     def load_file(self, file_path):
         # Read and parse the file
         bytes_ = Bytes(file_path)
-        bytes_range = BytesRange(0, len(bytes_), data=bytes_)
+        byte_range = ByteRange(0, len(bytes_), data=bytes_)
 
         IndexedHeader.reset_indices()
 
         # Determine if the first header is a fat header, mach header or neither
         if MachHeader.is_valid_header(bytes_.bytes) or MachHeader64.is_valid_header(bytes_.bytes):
-            mach_o = MachO(bytes_range)
-            bytes_range.data = mach_o
+            mach_o = MachO(byte_range)
+            byte_range.data = mach_o
         elif FatHeader.is_valid_header(bytes_.bytes):
-            fat = Fat(bytes_range)
-            bytes_range.data = fat
+            fat = Fat(byte_range)
+            byte_range.data = fat
         else:
             print 'ERROR: Cannot find neither fat nor mach header in the beginning of the binary.'
             return
-        self.load(bytes_range, bytes_)
+        self.load(byte_range, bytes_)
         self.set_subtitle(file_path)
 
-    def load(self, bytes_range, bytes_):
+    def load(self, byte_range, bytes_):
         selected = self.notebook.select()
         # Do not update all notebook pages in order to speed up load time.
         # Lazy initializes every page
@@ -104,10 +104,10 @@ class Gui(object):
         for index in xrange(len(self.visible_tabs)):
             tab = self.visible_tabs[index]
             if visible_ids[index] == selected:
-                tab.load(bytes_range, bytes_)
+                tab.load(byte_range, bytes_)
             else:
                 tab.clear()
-        self.bytes_range = bytes_range
+        self.byte_range = byte_range
         self.bytes = bytes_
         self.parent.update_idletasks()
 
@@ -122,7 +122,7 @@ class Gui(object):
         assert event is not None  # get rid of pycharm warning
         selected_tab = self._selected_tab()
         if not selected_tab.is_loaded():
-            selected_tab.load(self.bytes_range, self.bytes)
+            selected_tab.load(self.byte_range, self.bytes)
 
     def _add_menu(self, name, items):
         menu = Tk.Menu(self.menu_bar, tearoff=0)

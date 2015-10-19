@@ -6,7 +6,7 @@ except ImportError:
     import tkinter.ttk as ttk
 from window_tab import WindowTab
 from tree_table import TreeTable
-from utils.bytes_range import BytesRange
+from utils.byte_range import ByteRange
 from utils.header import NullTerminatedStringField
 from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
@@ -56,15 +56,15 @@ class SymbolWindow(WindowTab):
         self.table.clear()
 
     def clear_states(self):
-        self.bytes_range = None
+        self.byte_range = None
         self.symbol_tables = list()
         self.mach_o = list()
 
-    def load(self, bytes_range, bytes_):
-        assert isinstance(bytes_range, BytesRange)
+    def load(self, byte_range, bytes_):
+        assert isinstance(byte_range, ByteRange)
         self.symbol_tables = list()
-        bytes_range.iterate(self._parse)
-        self.bytes_range = bytes_range
+        byte_range.iterate(self._parse)
+        self.byte_range = byte_range
         self.display()
 
     def _parse(self, br, start, stop, level):
