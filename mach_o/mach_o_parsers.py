@@ -376,7 +376,6 @@ class SymtabParser(LinkEditParser):
                                             symtab_command.stroff + symtab_command.strsize)
 
         # Parse all nlist entries
-        str_table = dict()
         for idx in xrange(symtab_command.nsyms):
             if progress is not None:
                 progress.click()
@@ -403,18 +402,14 @@ class SymtabParser(LinkEditParser):
                 # names must not have a zero string index.  This is bit historical information
                 # that has never been well documented.
                 pass
-            elif nlist.n_strx not in self.mach_o.symbol_string_table:
+            else:
                 (sym_name, total_len) = self._find_string(str_bytes_, nlist.n_strx)
-                try:
-                    # Original code is:
-                    #
-                    # str_br.add_subrange(nlist.n_strx, total_len, data=SymtabString(nlist.n_strx, sym_name))
-                    #
-                    # Again, we avoid creating the byte range in order to reduce memory consumption.
-                    sym_str_tab.add(nlist.n_strx, sym_name)
-                    str_table[nlist.n_strx] = total_len
-                except ValueError as e:
-                    print 'WARNING: fail to create symtab string subrange (%s)' % str(e)
+                # Original code is:
+                #
+                # str_br.add_subrange(nlist.n_strx, total_len, data=SymtabString(nlist.n_strx, sym_name))
+                #
+                # Again, we avoid creating the byte range in order to reduce memory consumption.
+                sym_str_tab.add(nlist.n_strx, sym_name)
         sym_tab.correlate_string_table(sym_str_tab)
         if progress is not None:
             progress.done()
