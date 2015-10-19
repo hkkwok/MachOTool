@@ -29,7 +29,7 @@ class DecodeWindow(WindowTab):
         self.inner_panedwindow = ttk.Panedwindow(self.outer_panedwindow, orient=Tk.HORIZONTAL)
         self.outer_panedwindow.add(self.inner_panedwindow)
 
-        # A bytes range tree on the left
+        # A byte range tree on the left
         self.byte_range_tree = BytesRangeTree(self.inner_panedwindow)
         self.byte_range_tree.select_callback = self.header_selected
         self.byte_range_tree.open_callback = self.block_opened
@@ -70,7 +70,7 @@ class DecodeWindow(WindowTab):
             (start, stop) = sr.abs_range()
             return desc, format(start, ','), format(stop, ',')
 
-        pi = ProgressIndicator('show bytes ranges...', 1)
+        pi = ProgressIndicator('show byte ranges...', 1)
         for idx in xrange(len(br.subranges)):
             subrange = br.subranges[idx]
             child_id = parent_id + '.%d' % idx
@@ -121,7 +121,7 @@ class DecodeWindow(WindowTab):
 
 class BytesRangeTree(TreeTable):
     def __init__(self, parent, **kwargs):
-        TreeTable.__init__(self, parent, 'Bytes Ranges', ('Header', 'Start', 'Stop'), **kwargs)
+        TreeTable.__init__(self, parent, 'Byte Ranges', ('Header', 'Start', 'Stop'), **kwargs)
         self.tree.column('Start', width=80, stretch=False, anchor=Tk.E)
         self.tree.column('Stop', width=80, stretch=False, anchor=Tk.E)
         self.tree.configure(selectmode='browse')

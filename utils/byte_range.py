@@ -57,7 +57,7 @@ class ByteRange(Range):
     def insert_subrange(self, offset, length, data=None):
         """
         Unlike add_subrange() which appends a new subrange on top of current range, this method
-        inserts a subrange between this bytes range and existing subrange that are covered by
+        inserts a subrange between this byte range and existing subrange that are covered by
         this new subrange. It can be used for grouping for example.
         """
         # Make sure that there is no subrange that spans the boundary (start and / or stop).

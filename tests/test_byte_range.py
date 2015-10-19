@@ -47,7 +47,7 @@ class TestBytesRange(unittest.TestCase):
         self.check_partition(br, False)
         self.check_subranges(br, (50, 57), (100, 151), (200, 1000))
 
-        # Fill out the remaining gap to completely cover the bytes range
+        # Fill out the remaining gap to completely cover the byte range
         br.add_subrange(offset=0, length=50)
         br.add_subrange(offset=57, length=43)
         br.add_subrange(offset=151, length=49)
@@ -115,5 +115,5 @@ class TestBytesRange(unittest.TestCase):
         # Add an overlapping subrange behind 2nd subrange
         self.assertRaises(ValueError, lambda: br.add_subrange(79, 10))
 
-        # Add a subrange that goes beyond the parent bytes range
+        # Add a subrange that goes beyond the parent byte range
         self.assertRaises(ValueError, lambda: br.add_subrange(90, 11))

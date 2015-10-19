@@ -1,4 +1,4 @@
-from utils.bytes_range_parser import BytesRangeParser
+from utils.byte_range_parser import ByteRangeParser
 from utils.unescape import Unescape
 from utils.progress_indicator import ProgressIndicator
 from utils.header import NullTerminatedStringField
@@ -87,7 +87,7 @@ class SectionDescriptor(object):
         return self.is_text_section(self.SECT_OBJC_METHNAME)
 
 
-class LoadCommandParser(BytesRangeParser):
+class LoadCommandParser(ByteRangeParser):
     def __init__(self, byte_range, mach_o):
         super(LoadCommandParser, self).__init__(byte_range)
         self.mach_o = mach_o
@@ -127,7 +127,7 @@ class LoadCommandParser(BytesRangeParser):
             assert callable(cmd_class)
             lc = cmd_class(self._get_bytes(self.hdr_size))
         if cmd_class is None or lc is None:
-            # This is an unknown LC. We can only create a generic LC bytes range and a unknown padding.
+            # This is an unknown LC. We can only create a generic LC byte range and a unknown padding.
             hdr_size = LoadCommand.get_size()
             self.add_subrange(generic_lc, hdr_size)
             self.add_subrange(UnexpectedPadding('unknown LC'), self.cmd_size - hdr_size)
@@ -159,13 +159,13 @@ class LoadCommandParser(BytesRangeParser):
             self._add_lc_str('dylib_name', lc.dylib_name_offset)  # parse dylib.name
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_ID_DYLINKER', 'LC_LOAD_DYLINKER', 'LC_DYLD_ENVIRONMENT'):
             assert isinstance(lc, DylinkerCommand)
             self._add_lc_str('name', lc.name_offset)  # parse name
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_DYLD_INFO', 'LC_DYLD_INFO_ONLY'):
             assert isinstance(lc, DyldInfoCommand)
             # Record the rebase, different types of bind and export sections
@@ -184,25 +184,25 @@ class LoadCommandParser(BytesRangeParser):
             self._add_lc_str('umbrella', lc.umbrella_offset)
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_CLIENT':
             assert isinstance(lc, SubClientCommand)
             self._add_lc_str('client', lc.client_offset)
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_UMBRELLA':
             assert isinstance(lc, SubUmbrellaCommand)
             self._add_lc_str('sub_umbrella', lc.sub_umbrella_offset)
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_LIBRARY':
             assert isinstance(lc, SubLibraryCommand)
             self._add_lc_str('library', lc.library_offset)
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_PREBOUND_DYLIB':
             assert isinstance(lc, PreboundDylibCommand)
             self._add_lc_str('name', lc.name_offset)
@@ -213,7 +213,7 @@ class LoadCommandParser(BytesRangeParser):
             self.add_subrange('<modules:%s>' % ' '.join(['%02x' % x for x in bit_vector]))
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_TWOLEVEL_HINTS':
             assert isinstance(lc, TwolevelHintsCommand)
             raise NotImplementedError()  # TODO - need to make a test binary
@@ -236,13 +236,13 @@ class LoadCommandParser(BytesRangeParser):
             self._add_lc_str('path', lc.path_offset)
             self._add_trailing_gap('alignment')
             self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                             data=LoadCommandBlock(cmd_desc))
+                                            data=LoadCommandBlock(cmd_desc))
 
         # Account for any trailing gap
         self._add_trailing_gap(cmd_desc)
 
 
-class SectionParser(BytesRangeParser):
+class SectionParser(ByteRangeParser):
     def __init__(self, mach_o_br):
         super(SectionParser, self).__init__(mach_o_br)
 
@@ -286,7 +286,7 @@ class SectionParser(BytesRangeParser):
             self.add_subrange(data_section, section.size)
 
 
-class SegmentParser(BytesRangeParser):
+class SegmentParser(ByteRangeParser):
     def __init__(self, mach_o_br):
         super(SegmentParser, self).__init__(mach_o_br)
 
@@ -306,7 +306,7 @@ class SegmentParser(BytesRangeParser):
         return br
 
 
-class LinkEditParser(BytesRangeParser):
+class LinkEditParser(ByteRangeParser):
     def __init__(self, linkedit_br, mach_o):
         super(LinkEditParser, self).__init__(linkedit_br)
         self.mach_o = mach_o
@@ -373,7 +373,7 @@ class SymtabParser(LinkEditParser):
         sym_br = self.add_section(symtab_command.symoff, symtab_command.nsyms * self.nlist_size, data=sym_tab)
         self.add_section(symtab_command.stroff, symtab_command.strsize, data=sym_str_tab)
         str_bytes_ = self.byte_range.bytes(symtab_command.stroff,
-                                            symtab_command.stroff + symtab_command.strsize)
+                                           symtab_command.stroff + symtab_command.strsize)
 
         # Parse all nlist entries
         for idx in xrange(symtab_command.nsyms):

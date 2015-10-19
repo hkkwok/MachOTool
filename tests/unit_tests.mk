@@ -2,7 +2,7 @@
 
 UTILS_TESTS := \
 	test_range \
-	test_bytes_range
+	test_byte_range
 
 MACH_O_TESTS := \
 	test_fat_header \

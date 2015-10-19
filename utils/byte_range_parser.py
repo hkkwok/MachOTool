@@ -1,4 +1,4 @@
-class BytesRangeParser(object):
+class ByteRangeParser(object):
     def __init__(self, byte_range):
         self.byte_range = byte_range
         self.start = None

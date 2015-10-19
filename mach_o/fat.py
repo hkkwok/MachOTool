@@ -1,10 +1,10 @@
 from headers.fat_header import FatHeader
 from headers.fat_arch import FatArch
 from mach_o import MachO
-from utils.bytes_range_parser import BytesRangeParser
+from utils.byte_range_parser import ByteRangeParser
 
 
-class Fat(BytesRangeParser):
+class Fat(ByteRangeParser):
     def __init__(self, fat_br):
         super(Fat, self).__init__(fat_br)
         self.start = 0
