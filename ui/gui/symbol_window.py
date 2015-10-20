@@ -154,8 +154,13 @@ class SymbolTableView(LightScrollableWidget):
     def display(self):
         self.clear_widget()
         self._update_widget_rows(None, None)
-        stop = min(self.rows, self.widget_rows())
-        self._show(0, stop)
+        widget_rows = self.widget_rows()
+        if self.rows <= widget_rows:
+            self._show(0, self.rows - 1)
+            self.yscroll.set('0.0', '1.0')
+        else:
+            self._show(0, widget_rows)
+            self.yscroll.set(str(0.0), str(self.to_normalized(widget_rows)))
 
     @staticmethod
     def _y_or_n(boolean):
