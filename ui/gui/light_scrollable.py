@@ -1,13 +1,5 @@
-try:
-    # Python 2
-    import Tkinter as Tk
-    import tkFont as tkFont
-    import ttk
-except ImportError:
-    # Python 3
-    import tkinter as Tk
-    import tkinter.ttk as ttk
-    import tkinter.font as tkFont
+import Tkinter as Tk
+import ttk
 from auto_hide_scrollbar import AutoHideScrollbar
 
 
@@ -89,7 +81,7 @@ class LightScrollableWidget(ttk.Labelframe):
     def to_normalized(self, row):
         return float(row) / self.rows
 
-    def to_unnormalized(self, normalized, round_up = False):
+    def to_unnormalized(self, normalized, round_up=False):
         row = float(normalized) * self.rows
         if round_up:
             row += 0.5

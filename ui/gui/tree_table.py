@@ -1,13 +1,5 @@
-try:
-    # Python 2
-    import Tkinter as Tk
-    import tkFont as tkFont
-    import ttk
-except ImportError:
-    # Python 3
-    import tkinter as Tk
-    import tkinter.ttk as ttk
-    import tkinter.font as tkFont
+import Tkinter as Tk
+import ttk
 from ui.gui.auto_hide_scrollbar import AutoHideScrollbar
 
 

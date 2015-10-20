@@ -1,9 +1,5 @@
-try:
-    import Tkinter as Tk
-    import ttk
-except ImportError:
-    import _tkinter as Tk
-    import tkinter.ttk as ttk
+import Tkinter as Tk
+import ttk
 from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.byte_range import ByteRange
@@ -71,7 +67,7 @@ class SymbolWindow(WindowTab):
         if isinstance(br.data, (MachHeader, MachHeader64)):
             mach_o_hdr = br.data
             cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
-            mach_o_info = SymbolTableViewMachO(cpu_type)
+            mach_o_info = MachOInfo(cpu_type)
             self._mach_o_info.append(mach_o_info)
         elif isinstance(br.data, SymbolTable):
             self._mach_o_info[-1].add_symbol_table(br.data)
@@ -170,7 +166,19 @@ class SymbolTableView(LightScrollableWidget):
             return 'N'
 
 
-class SymbolTableViewMachO(object):
+class MachOInfo(object):
+    """
+    MachOInfo is a helper class that manages the information to be presented
+    in SymbolWindow. There is one MachOInfo object per MachO in a binary.
+    It contains a list of symbol tables and sections (for that MachO). It also
+    holds the filtering results. The UI objects above only need to:
+
+    1. Create a MachOInfo object for each mach_header header.
+    2. Add a section object (to the MachOInfo object) for each section header.
+    3. Add a symbol table object for each symtab_command header.
+    4. Filter with the given symbol pattern.
+    5. Get a symbol given an index from 0 to self.num_matched - 1.
+    """
     def __init__(self, desc):
         self.desc = desc
         self._sections = list()

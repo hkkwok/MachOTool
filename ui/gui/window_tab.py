@@ -1,7 +1,4 @@
-try:
-    import ttk as ttk
-except ImportError:
-    import tkinter.ttk as ttk
+import ttk as ttk
 
 
 class WindowTab(ttk.Frame):

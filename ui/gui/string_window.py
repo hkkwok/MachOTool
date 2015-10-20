@@ -1,9 +1,5 @@
-try:
-    import Tkinter as Tk
-    import ttk
-except ImportError:
-    import tkinter as Tk
-    import tkinter.ttk as ttk
+import Tkinter as Tk
+import ttk
 
 from tree_table import TreeTable
 from window_tab import WindowTab

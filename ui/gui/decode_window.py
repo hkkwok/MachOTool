@@ -1,20 +1,12 @@
-try:
-    # Python 2
-    import Tkinter as Tk
-    import tkFont as tkFont
-    import ttk
-except ImportError:
-    # Python 3
-    import tkinter as Tk
-    import tkinter.ttk as ttk
-    import tkinter.font as tkFont
+import Tkinter as Tk
+import tkFont as tkFont
+import ttk
 import string
 
 from utils.header import Header
 from utils.progress_indicator import ProgressIndicator
 from tree_table import TreeTable
 from window_tab import WindowTab
-from auto_hide_scrollbar import AutoHideScrollbar
 from light_scrollable import LightScrollableWidget
 
 
@@ -31,20 +23,20 @@ class DecodeWindow(WindowTab):
         self.outer_panedwindow.add(self.inner_panedwindow)
 
         # A byte range tree on the left
-        self.byte_range_tree = BytesRangeTree(self.inner_panedwindow)
+        self.byte_range_tree = ByteRangeView(self.inner_panedwindow)
         self.byte_range_tree.select_callback = self.header_selected
         self.byte_range_tree.open_callback = self.block_opened
         self.byte_range_tree.configure(width=200, height=100, padding=5)
         self.inner_panedwindow.add(self.byte_range_tree)
 
         # A table of header key-value pairs on the right
-        self.header_table = FieldValueTable(self.inner_panedwindow)
+        self.header_table = FieldValueView(self.inner_panedwindow)
         self.header_table.select_callback = self.field_selected
         self.header_table.configure(width=100, height=100, padding=5)
         self.inner_panedwindow.add(self.header_table)
 
         # A byte table at the bottom
-        self.bytes_table = BytesTable(self.outer_panedwindow)
+        self.bytes_table = BytesView(self.outer_panedwindow)
         self.bytes_table.configure(width=300, height=100, padding=5)
         self.outer_panedwindow.add(self.bytes_table)
 
@@ -120,7 +112,7 @@ class DecodeWindow(WindowTab):
         self._add_subtree(parent_id, br)
 
 
-class BytesRangeTree(TreeTable):
+class ByteRangeView(TreeTable):
     def __init__(self, parent, **kwargs):
         TreeTable.__init__(self, parent, 'Byte Ranges', ('Header', 'Start', 'Stop'), **kwargs)
         self.tree.column('Start', width=80, stretch=False, anchor=Tk.E)
@@ -129,7 +121,7 @@ class BytesRangeTree(TreeTable):
         self.select_callback = None
 
 
-class FieldValueTable(TreeTable):
+class FieldValueView(TreeTable):
     LIGHT_BLUE_TAG_NAME = 'light_blue_background'
 
     def __init__(self, parent, **kwargs):
@@ -153,7 +145,7 @@ class FieldValueTable(TreeTable):
             idx += 1
 
 
-class BytesTable(LightScrollableWidget):
+class BytesView(LightScrollableWidget):
     BYTES_PER_ROW = 16
     FONT_FAMILY = 'Courier New'
     FONT = None
@@ -321,8 +313,8 @@ class MarkedBytes(object):
         self.stop_col = None
 
     def set(self, start, stop):
-        self.start_row, self.start_col = divmod(start, BytesTable.BYTES_PER_ROW)
-        self.stop_row, self.stop_col = divmod(stop, BytesTable.BYTES_PER_ROW)
+        self.start_row, self.start_col = divmod(start, BytesView.BYTES_PER_ROW)
+        self.stop_row, self.stop_col = divmod(stop, BytesView.BYTES_PER_ROW)
 
     def is_marked(self, row):
         return self.start_row <= row <= self.stop_row
@@ -331,7 +323,7 @@ class MarkedBytes(object):
         if not self.is_marked(row):
             return None, None
         start_col = 0
-        stop_col = BytesTable.BYTES_PER_ROW
+        stop_col = BytesView.BYTES_PER_ROW
         if self.start_row == row:
             start_col = self.start_col
         if self.stop_row == row:

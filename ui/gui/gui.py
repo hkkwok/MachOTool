@@ -1,15 +1,6 @@
-try:
-    # Python 2
-    import Tkinter as Tk
-    import tkFont as tkFont
-    import ttk
-    import tkFileDialog as filedialog
-except ImportError:
-    # Python 3
-    import tkinter as Tk
-    import tkinter.ttk as ttk
-    import tkinter.font as tkFont
-    import tkinter.filedialog as filedialog
+import Tkinter as Tk
+import ttk
+import tkFileDialog as FileDialog
 from window_tab import WindowTab
 from decode_window import DecodeWindow
 from string_window import StringWindow
@@ -131,7 +122,7 @@ class Gui(object):
         self.menu_bar.add_cascade(label=name, menu=menu)
 
     def open(self):
-        file_path = filedialog.askopenfilename(parent=self.parent)
+        file_path = FileDialog.askopenfilename(parent=self.parent)
         if file_path != '':
             self.load_file(file_path)
 
