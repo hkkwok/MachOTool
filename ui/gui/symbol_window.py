@@ -12,11 +12,14 @@ from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
 from mach_o.non_headers.symbol_table_block import SymbolTable
 from mach_o.headers.mach_header import MachHeader, MachHeader64
+from light_scrollable import LightScrollableWidget
 
 
 class SymbolWindow(WindowTab):
     TITLE = 'Symbols'
     LIGHT_BLUE_TAG_NAME = 'light_blue_background'
+    LIGHT_BLUE = '#e0e8f0'
+    MACH_O_TABLE_COLUMNS = ('CPU Type', '# Symbols', '# Matched')
 
     def __init__(self, parent):
         WindowTab.__init__(self, parent)
@@ -32,37 +35,33 @@ class SymbolWindow(WindowTab):
         self.search_entry.pack(side=Tk.LEFT, fill=Tk.X, expand=True)
         self.search_entry.bind('<Return>', self.search)
 
-        self.table = TreeTable(self, 'String',
-                               columns=('Index', 'Section', 'Type', 'Global', 'Defined', 'Lazy', 'Symbol'))
-        self.table.tree.column('Type', width=65, stretch=False, anchor=Tk.CENTER)
-        self.table.tree.column('Global', width=45, stretch=False, anchor=Tk.CENTER)
-        self.table.tree.column('Defined', width=45, stretch=False, anchor=Tk.CENTER)
-        self.table.tree.column('Lazy', width=45, stretch=False, anchor=Tk.CENTER)
-        self.table.tree.tag_configure(self.LIGHT_BLUE_TAG_NAME, background='#e0e8f0')
-        self.table.pack(side=Tk.BOTTOM, fill=Tk.BOTH, expand=True)
+        self.mach_o_table = TreeTable(self, 'Mach-O', columns=self.MACH_O_TABLE_COLUMNS)
+        self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[1], width=75, stretch=False, anchor=Tk.E)
+        self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[2], width=75, stretch=False, anchor=Tk.E)
+        self.mach_o_table.tree.tag_configure(self.LIGHT_BLUE_TAG_NAME, background=self.LIGHT_BLUE)
+        self.mach_o_table.pack(side=Tk.TOP, fill=Tk.X, expand=True)
 
-        # symbol_tables is a list of OrderedDict. One OrderedDict per Mach-O. In each
-        # OrderedDict, symbol table strings are keyed by offset (from the beginning of
-        # the symbol table string table region.
-        self.symbol_tables = list()
-        self.mach_o = list()
-        self.sections = [None]
+        self.symbol_table = SymbolTableView(self)
+        self.symbol_table.pack(side=Tk.BOTTOM, fill=Tk.X, expand=True)
+
+        self._mach_o_info = list()
+        self._filter_mapping = None  # map table index to mach-o info index when an entry in mach-o table is clicked
 
     def clear(self):
         self.clear_ui()
         self.clear_states()
 
     def clear_ui(self):
-        self.table.clear()
+        self.mach_o_table.clear()
+        self.symbol_table.clear_widget()
 
     def clear_states(self):
         self.byte_range = None
-        self.symbol_tables = list()
-        self.mach_o = list()
+        self._mach_o_info = list()
+        self._filter_mapping = None
 
     def load(self, byte_range, bytes_):
         assert isinstance(byte_range, ByteRange)
-        self.symbol_tables = list()
         byte_range.iterate(self._parse)
         self.byte_range = byte_range
         self.display()
@@ -70,12 +69,93 @@ class SymbolWindow(WindowTab):
     def _parse(self, br, start, stop, level):
         assert start is not None and stop is not None and level is not None  # get rid of pycharm warnings
         if isinstance(br.data, (MachHeader, MachHeader64)):
-            self.mach_o.append(br.data)
-            self.symbol_tables.append(list())
+            mach_o_hdr = br.data
+            cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
+            mach_o_info = SymbolTableViewMachO(cpu_type)
+            self._mach_o_info.append(mach_o_info)
         elif isinstance(br.data, SymbolTable):
-            self.symbol_tables[-1].append(br.data)
+            self._mach_o_info[-1].add_symbol_table(br.data)
         elif isinstance(br.data, (Section, Section64)):
-            self.sections.append(br.data)
+            self._mach_o_info[-1].add_section(br.data)
+
+    def display(self):
+        filter_pattern = self.search_entry.get()
+
+        # Update Mach-O table
+        self._filter_mapping = list()
+        for (mach_o_idx, mach_o_info) in enumerate(self._mach_o_info):
+            # TODO - Add graphical progress indicator as this operation can be time consuming
+            num_matches = mach_o_info.filter(filter_pattern)
+            if num_matches == 0:
+                continue
+            self.mach_o_table.add('', len(self._filter_mapping),
+                                  (mach_o_info.desc, mach_o_info.num_symbols(), mach_o_info.num_matched))
+            self._filter_mapping.append(mach_o_idx)
+
+        # Update symbol table
+        if len(self._filter_mapping) > 0:
+            first_matched_mach_o = self._mach_o_info[self._filter_mapping[0]]
+            self.symbol_table.set_mach_o_info(first_matched_mach_o)
+            self.symbol_table.display()
+
+    def search(self, event):
+        assert event is not None
+        self.clear_ui()
+        self.display()
+
+
+class SymbolTableView(LightScrollableWidget):
+    COLUMNS = ('Index', 'Section', 'Type', 'Global', 'Defined', 'Lazy', 'Symbol')
+    LIGHT_BLUE_TAG_NAME = 'light_blue_background'
+    LIGHT_BLUE = '#e0e8f0'
+
+    def __init__(self, parent):
+        LightScrollableWidget.__init__(self, parent, 'Symbols',
+                                       lambda p: ttk.Treeview(self, columns=self.COLUMNS[1:]))
+        self.widget.heading('#0', text=self.COLUMNS[0])
+        for col in self.COLUMNS[1:]:
+            self.widget.heading(col, text=col)
+        self.widget.column(self.COLUMNS[2], width=65, stretch=False, anchor=Tk.CENTER)
+        self.widget.column(self.COLUMNS[3], width=45, stretch=False, anchor=Tk.CENTER)
+        self.widget.column(self.COLUMNS[4], width=45, stretch=False, anchor=Tk.CENTER)
+        self.widget.column(self.COLUMNS[5], width=45, stretch=False, anchor=Tk.CENTER)
+        self.widget.tag_configure(self.LIGHT_BLUE_TAG_NAME, background=self.LIGHT_BLUE)
+
+        self._mach_o_info = None
+        self.filter_pattern = None
+
+    def clear_widget(self):
+        for child in self.widget.get_children():
+            self.widget.delete(child)
+
+    def widget_rows(self):
+        return self.widget.cget('height')
+
+    def show_row(self, data_row, view_row):
+        symbol, symbol_name, section_desc = self._mach_o_info.symbol(data_row)
+        if (data_row % 2) == 0:
+            kwargs = dict()
+        else:
+            kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
+        child_id = '.' + str(view_row)
+        self.widget.insert(parent='', index=view_row, iid=child_id, text=str(symbol.index),
+                           values=(section_desc,
+                                   symbol.type(),
+                                   self._y_or_n(symbol.is_global()),
+                                   self._y_or_n(symbol.is_defined()),
+                                   self._y_or_n(symbol.is_lazy()),
+                                   symbol_name),
+                           **kwargs)
+
+    def set_mach_o_info(self, mach_o_info):
+        self._mach_o_info = mach_o_info
+        self.rows = self._mach_o_info.num_matched
+
+    def display(self):
+        self.clear_widget()
+        self._update_widget_rows(None, None)
+        stop = min(self.rows, self.widget_rows())
+        self._show(0, stop)
 
     @staticmethod
     def _y_or_n(boolean):
@@ -84,52 +164,58 @@ class SymbolWindow(WindowTab):
         else:
             return 'N'
 
-    def display(self):
-        filter_pattern = self.search_entry.get()
 
-        mach_o_idx = 0
-        for symbol_table_list in self.symbol_tables:
-            mach_o_hdr = self.mach_o[mach_o_idx]
-            cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
-            mach_o_id = self.table.add('', mach_o_idx, ('Mach-O', cpu_type, '', '', '', '', ''))
-            symbol_idx = 0
-            for symbol_table in symbol_table_list:
-                for (index, n_strx, n_type, n_sect, n_desc, n_value, symbol_name) in symbol_table.symbols:
-                    if filter_pattern not in symbol_name:
-                        continue
-                    symbol = Nlist64(index=index,
-                                     n_strx=n_strx,
-                                     n_type=n_type,
-                                     n_sect=n_sect,
-                                     n_desc=n_desc,
-                                     n_value=n_value)
-                    if (symbol_idx % 2) == 0:
-                        kwargs = dict()
-                    else:
-                        kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
-                    if symbol.n_sect == 0:
-                        section_desc = ''
-                    else:
-                        this_section = self.sections[symbol.n_sect]
-                        section_desc = '%s, %s' % \
-                                       (NullTerminatedStringField.get_string(this_section.segname),
-                                        NullTerminatedStringField.get_string(this_section.sectname))
-                    self.table.add(mach_o_id, symbol_idx,
-                                   (str(symbol.index),
-                                    section_desc,
-                                    symbol.type(),
-                                    self._y_or_n(symbol.is_global()),
-                                    self._y_or_n(symbol.is_defined()),
-                                    self._y_or_n(symbol.is_lazy()),
-                                    symbol_name), **kwargs)
-                    symbol_idx += 1
-            if len(self.table.tree.get_children(mach_o_id)) == 0:
-                self.table.tree.delete(mach_o_id)
-            else:
-                self.table.tree.item(mach_o_id, open=True)
-            mach_o_idx += 1
+class SymbolTableViewMachO(object):
+    def __init__(self, desc):
+        self.desc = desc
+        self._sections = list()
+        # There should be only one symbol table per Mach-O but I cannot find documentation that
+        # guarantee that constraint. So, if there are multiple LC_SYMTAB_COMMAND, we need to keep
+        # a list of symbol tables.
+        self._symbol_tables = list()
+        self._filter_mappings = None
+        self.num_matched = None
 
-    def search(self, event):
-        assert event is not None
-        self.clear_ui()
-        self.display()
+    def add_symbol_table(self, symbol_table):
+        self._symbol_tables.append(symbol_table)
+
+    def add_section(self, section):
+        self._sections.append(section)
+
+    def filter(self, pattern):
+        self._filter_mappings = list()
+        self.num_matched = 0
+        for symbol_table in self._symbol_tables:
+            indices = symbol_table.filter(pattern)
+            self._filter_mappings.append(indices)
+            self.num_matched += len(indices)
+        return self.num_matched
+
+    def num_symbols(self):
+        return sum([len(st.symbols) for st in self._symbol_tables], 0)
+
+    def symbol(self, matched_idx):
+        assert 0 <= matched_idx < self.num_matched
+        table_idx = 0
+        section_desc = ''
+        for mapping in self._filter_mappings:
+            mapping_size = len(mapping)
+            if matched_idx >= mapping_size:
+                matched_idx -= mapping_size
+                table_idx += 1
+                continue
+            (index, n_strx, n_type, n_sect, n_desc, n_value, symbol_name) = \
+                self._symbol_tables[table_idx].symbols[mapping[matched_idx]]
+            nlist = Nlist64(index=index,
+                            n_strx=n_strx,
+                            n_type=n_type,
+                            n_sect=n_sect,
+                            n_desc=n_desc,
+                            n_value=n_value)
+            if nlist.n_sect != 0:
+                this_section = self._sections[nlist.n_sect]
+                section_desc = '%s, %s' % \
+                               (NullTerminatedStringField.get_string(this_section.segname),
+                                NullTerminatedStringField.get_string(this_section.sectname))
+            return nlist, symbol_name, section_desc
+        assert False  # should never get here

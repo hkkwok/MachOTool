@@ -42,6 +42,16 @@ class SymbolTable(SymbolTableBase):
             if sym_name is not None:
                 self.symbols[idx] = self.symbols[idx][:self.SYM_NAME] + (sym_name,)
 
+    def filter(self, pattern=None):
+        if pattern is None:
+            return range(len(self.symbols))
+
+        indices = list()
+        for (sym_idx, (index, n_strx, n_type, n_sect, n_desc, n_value, symbol_name)) in enumerate(self.symbols):
+            if pattern in symbol_name:
+                indices.append(sym_idx)
+        return indices
+
 
 class SymbolStringTable(SymbolTableBase):
     def __init__(self):
