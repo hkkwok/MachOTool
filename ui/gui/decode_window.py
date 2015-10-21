@@ -270,14 +270,14 @@ class BytesView(LightScrollableWidget):
         if not self.is_visible(row):
             return False
         start_col = start_byte_column(start)
-        stop_col = stop_byte_column(stop)
+        stop_col = stop_byte_column(stop + 1)
         start_index = column2index(row, start_col)
         stop_index = column2index(row, stop_col)
         self.widget.tag_add(self.MARK_TAG_NAME, start_index, stop_index)
         self.mark_ranges.append((start_index, stop_index))
 
         start_col = char_column(start)
-        stop_col = char_column(stop)
+        stop_col = char_column(stop + 1)
         start_index = column2index(row, start_col)
         stop_index = column2index(row, stop_col)
         self.widget.tag_add(self.MARK_TAG_NAME, start_index, stop_index)
@@ -329,7 +329,7 @@ class MarkedBytes(object):
         if not self.is_marked(row):
             return None, None
         start_col = 0
-        stop_col = BytesView.BYTES_PER_ROW
+        stop_col = BytesView.BYTES_PER_ROW - 1
         if self.start_row == row:
             start_col = self.start_col
         if self.stop_row == row:
