@@ -2,6 +2,10 @@ import ttk as ttk
 
 
 class AutoHideScrollbar(ttk.Scrollbar):
+    """
+    AutoHideScrollbar disappears if the set is from 0.0 to 1.0 and
+    reappears automatically if the scroll range becomes less than 100%.
+    """
     def __init__(self, parent, **kwargs):
         ttk.Scrollbar.__init__(self, parent, **kwargs)
         self.width = self._get_width()

@@ -3,7 +3,7 @@ from utils.commafy import commafy
 
 
 class SymbolTableBase(Header):
-    FIELDS =(
+    FIELDS = (
         NonEncodingField('desc'),
     )
 

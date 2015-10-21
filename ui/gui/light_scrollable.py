@@ -24,12 +24,14 @@ class LightScrollableWidget(ttk.Labelframe):
         self.widget = widget_fn(self)
         self.widget.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
         self.widget.bind('<MouseWheel>', self._scrolled)
+        self.widget.bind('<Configure>', self._configured)
 
         self.yscroll = AutoHideScrollbar(self, orient=Tk.VERTICAL, command=self.yview)
-        self.yscroll.pack(side=Tk.RIGHT, fill=Tk.Y)
+        self.yscroll.pack(side=Tk.RIGHT, fill=Tk.Y, expand=False)
 
         self._widget_start = None
         self._widget_stop = None
+        self._widget_height = None  # the height of the widget in unit of pixels
         self.rows = 0  # Number of rows
         self.index_base = 0
 
@@ -46,6 +48,13 @@ class LightScrollableWidget(ttk.Labelframe):
         """
         Must be overridden by derived class.
         :return: Return the number of rows of the base widget
+        """
+        raise NotImplementedError()
+
+    def row_height(self):
+        """
+        Must be overridden by derived class.
+        :return: Return the height of one row in units of pixel.
         """
         raise NotImplementedError()
 
@@ -72,17 +81,25 @@ class LightScrollableWidget(ttk.Labelframe):
         """
         raise NotImplementedError()
 
-    def to_view_row(self, data_row):
-        return data_row - self._widget_start + self.index_base
-
     def is_visible(self, data_row):
         return self._widget_start <= data_row <= self._widget_stop
 
+    # Some notes on the indexing systems. Tk uses a normalized indexing system
+    # ranging from [0, 1]. The unnormalized indexing system is the data row
+    # index ranging from [0, self.rows - 1]
+
+    def to_view_row(self, data_row):
+        assert 0 <= data_row < self.rows
+        return data_row - self._widget_start + self.index_base
+
     def to_normalized(self, row):
-        return float(row) / self.rows
+        assert 0 <= row < self.rows
+        return float(row) / float(self.rows - 1)
 
     def to_unnormalized(self, normalized, round_up=False):
-        row = float(normalized) * self.rows
+        normalized_flaot = float(normalized)
+        assert 0.0 <= normalized_flaot <= 1.0
+        row = normalized_flaot * (self.rows - 1)
         if round_up:
             row += 0.5
         return int(row)
@@ -94,6 +111,13 @@ class LightScrollableWidget(ttk.Labelframe):
         elif adjustment < 0:
             adjustment = -1
         self.yview('scroll', adjustment, 'units')
+
+    def _configured(self, event):
+        if event.height != self._widget_height:
+            self._widget_height = event.height
+            print 'CONFIGURE:', self._widget_height
+            print self.yscroll.get()
+            self.yview('moveto', self.yscroll.get()[0])
 
     def yview(self, *args):
         self._yview(False, *args)
@@ -121,7 +145,7 @@ class LightScrollableWidget(ttk.Labelframe):
             print 'Unknown action %s' % action
             return
         # Check we scroll past the end. Move it up
-        delta = stop_row - self.rows - 1
+        delta = stop_row - (self.rows - 1)
         if delta > 0:
             start_row -= delta
             stop_row -= delta
@@ -156,10 +180,11 @@ class LightScrollableWidget(ttk.Labelframe):
         self.clear_widget()
         self._update_widget_rows(start_row, stop_row)
         self._show_rows(start_row, stop_row)
+        self.widget.yview('moveto', '0.0')
         self.update_idletasks()
         self.update_end()
 
     def _show_rows(self, start, stop):
         self._validate_rows(start, stop)
         for row in xrange(start, stop + 1):
-            self.show_row(row, row - self._widget_start + 1)
+            self.show_row(row, row - self._widget_start + self.index_base)

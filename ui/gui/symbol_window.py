@@ -1,5 +1,6 @@
 import Tkinter as Tk
 import ttk
+import tkFont
 from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.byte_range import ByteRange
@@ -31,14 +32,17 @@ class SymbolWindow(WindowTab):
         self.search_entry.pack(side=Tk.LEFT, fill=Tk.X, expand=True)
         self.search_entry.bind('<Return>', self.search)
 
+        self.panedwindow = ttk.Panedwindow(self, orient=Tk.VERTICAL)
+        self.panedwindow.pack(side=Tk.BOTTOM, fill=Tk.BOTH, expand=True)
+
         self.mach_o_table = TreeTable(self, 'Mach-O', columns=self.MACH_O_TABLE_COLUMNS)
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[1], width=75, stretch=False, anchor=Tk.E)
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[2], width=75, stretch=False, anchor=Tk.E)
         self.mach_o_table.tree.tag_configure(self.LIGHT_BLUE_TAG_NAME, background=self.LIGHT_BLUE)
-        self.mach_o_table.pack(side=Tk.TOP, fill=Tk.X, expand=True)
+        self.panedwindow.add(self.mach_o_table)
 
         self.symbol_table = SymbolTableView(self)
-        self.symbol_table.pack(side=Tk.BOTTOM, fill=Tk.X, expand=True)
+        self.panedwindow.add(self.symbol_table)
 
         self._mach_o_info = list()
         self._filter_mapping = None  # map table index to mach-o info index when an entry in mach-o table is clicked
@@ -124,8 +128,15 @@ class SymbolTableView(LightScrollableWidget):
         for child in self.widget.get_children():
             self.widget.delete(child)
 
+    def row_height(self):
+        font = tkFont.Font(font='TkDefaultFont')
+        font_height = font.metrics('linespace')
+        return font_height + 2
+
     def widget_rows(self):
-        return self.widget.cget('height')
+        if self._widget_height is None:
+            return self.widget.cget('height')
+        return self._widget_height / self.row_height() - 2
 
     def show_row(self, data_row, view_row):
         symbol, symbol_name, section_desc = self._mach_o_info.symbol(data_row)
@@ -134,6 +145,7 @@ class SymbolTableView(LightScrollableWidget):
         else:
             kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
         child_id = '.' + str(view_row)
+        print 'SHOW_ROW:', data_row, view_row, child_id, symbol_name
         self.widget.insert(parent='', index=view_row, iid=child_id, text=str(symbol.index),
                            values=(section_desc,
                                    symbol.type(),
@@ -155,7 +167,7 @@ class SymbolTableView(LightScrollableWidget):
             self._show(0, self.rows - 1)
             self.yscroll.set('0.0', '1.0')
         else:
-            self._show(0, widget_rows)
+            self._show(0, widget_rows - 1)
             self.yscroll.set(str(0.0), str(self.to_normalized(widget_rows)))
 
     @staticmethod

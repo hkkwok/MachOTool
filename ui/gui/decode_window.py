@@ -16,7 +16,7 @@ class DecodeWindow(WindowTab):
     def __init__(self, parent):
         WindowTab.__init__(self, parent)
 
-        # Create the 3 panels
+        # Create the 3 views
         self.outer_panedwindow = ttk.Panedwindow(self, orient=Tk.VERTICAL)
         self.outer_panedwindow.pack(side=Tk.TOP, fill=Tk.BOTH, expand=True)
         self.inner_panedwindow = ttk.Panedwindow(self.outer_panedwindow, orient=Tk.HORIZONTAL)
@@ -186,8 +186,9 @@ class BytesView(LightScrollableWidget):
         self.mark_ranges = list()
 
     def widget_rows(self):
-        # TODO - This is not being updated but the initial value is good enough for now
-        return int(self.widget.cget('height'))
+        if self._widget_height is None:
+            return int(self.widget.cget('height'))
+        return self._widget_height / self.row_height()
 
     def update_begin(self):
         self.widget.configure(state=Tk.NORMAL)
@@ -198,6 +199,10 @@ class BytesView(LightScrollableWidget):
     def clear_widget(self):
         self.widget.delete('1.0', 'end')
         self._update_widget_rows(None, None)
+
+    def row_height(self):
+        font_height = self.FONT.metrics('linespace')
+        return font_height
 
     @staticmethod
     def _printable_char(ch):
