@@ -106,24 +106,23 @@ class LightScrollableWidget(ttk.Labelframe):
 
     def _scrolled(self, event):
         adjustment = event.delta
-        if adjustment > 0:
-            adjustment = 1
-        elif adjustment < 0:
-            adjustment = -1
-        self.yview('scroll', adjustment, 'units')
+        if adjustment < 0 and self._widget_start == 0:
+            return
+        if adjustment > 0 and self._widget_stop == (self.rows - 1):
+            return
+        self.yview('scroll', str(adjustment), 'units')
 
     def _configured(self, event):
         if event.height != self._widget_height:
             self._widget_height = event.height
-            print 'CONFIGURE:', self._widget_height
-            print self.yscroll.get()
             self.yview('moveto', self.yscroll.get()[0])
 
     def yview(self, *args):
         self._yview(False, *args)
 
     def _yview(self, forced_update, *args):
-        #print 'YVIEW', args
+        if self.rows == 0:
+            return
         action = args[0]
         if action == 'moveto':
             start_row = self.to_unnormalized(args[1])
@@ -177,8 +176,6 @@ class LightScrollableWidget(ttk.Labelframe):
         self._widget_stop = stop_row
 
     def _show(self, start_row, stop_row):
-        print 'SHOW: (%s, %s) -> (%s, %s)' % \
-              (str(self._widget_start), str(self._widget_stop), str(start_row), str(stop_row))
         self.update_begin()
         self.clear_widget()
         self._update_widget_rows(start_row, stop_row)

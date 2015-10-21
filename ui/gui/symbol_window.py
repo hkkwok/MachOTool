@@ -120,7 +120,7 @@ class SymbolTableView(LightScrollableWidget):
         self.widget.column(self.COLUMNS[4], width=45, stretch=False, anchor=Tk.CENTER)
         self.widget.column(self.COLUMNS[5], width=45, stretch=False, anchor=Tk.CENTER)
         self.widget.tag_configure(self.LIGHT_BLUE_TAG_NAME, background=self.LIGHT_BLUE)
-
+        self.widget.configure(selectmode='none')
         self._mach_o_info = None
         self.filter_pattern = None
 
@@ -145,7 +145,6 @@ class SymbolTableView(LightScrollableWidget):
         else:
             kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
         child_id = '.' + str(view_row)
-        print 'SHOW_ROW:', data_row, view_row, child_id, symbol_name
         self.widget.insert(parent='', index=view_row, iid=child_id, text=str(symbol.index),
                            values=(section_desc,
                                    symbol.type(),
