@@ -154,6 +154,9 @@ class LightScrollableWidget(ttk.Labelframe):
         if delta > 0:
             start_row += delta
             stop_row += delta
+        # Clip the stop row to no more than the total # of data row
+        if stop_row >= self.rows:
+            stop_row = self.rows - 1
 
         if not forced_update and start_row == self._widget_start and stop_row == self._widget_stop:
             return
