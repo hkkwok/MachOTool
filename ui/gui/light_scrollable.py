@@ -19,6 +19,9 @@ class LightScrollableWidget(ttk.Labelframe):
 
     Each LightScrollableWidget must contain a widget. This widget needs
     """
+    CONFIG_HEIGHT = 'height'
+    CONFIG_WIDTH = 'width'
+
     def __init__(self, parent, title, widget_fn):
         ttk.Labelframe.__init__(self, parent, text=title)
         self.widget = widget_fn(self)
@@ -31,9 +34,14 @@ class LightScrollableWidget(ttk.Labelframe):
 
         self._widget_start = None
         self._widget_stop = None
-        self._widget_height = None  # the height of the widget in unit of pixels
+        self._widget_height = None  # the height of the widget in units of pixel
+        self._widget_width = None  # the width of the widget in units of pixel
         self.rows = 0  # Number of rows
         self.index_base = 0
+
+        # This callback is made in a <Configure> event, the parameter is a list of string listed
+        # above (CONFIG_XXX). Each string indicates what attributes are configured.
+        self.configured_callback = None
 
     def set_rows(self, rows):
         self.rows = rows
@@ -106,16 +114,23 @@ class LightScrollableWidget(ttk.Labelframe):
 
     def _scrolled(self, event):
         adjustment = event.delta
-        if adjustment < 0 and self._widget_start == 0:
+        if adjustment > 0 and self._widget_start == 0:
             return
-        if adjustment > 0 and self._widget_stop == (self.rows - 1):
+        if adjustment < 0 and self._widget_stop == (self.rows - 1):
             return
         self.yview('scroll', str(adjustment), 'units')
 
     def _configured(self, event):
+        cfg_list = list()
         if event.height != self._widget_height:
             self._widget_height = event.height
             self.yview('moveto', self.yscroll.get()[0])
+            cfg_list.append(self.CONFIG_HEIGHT)
+        if event.width != self._widget_width:
+            self._widget_width = event.width
+            cfg_list.append(self.CONFIG_WIDTH)
+        if callable(self.configured_callback):
+            self.configured_callback(cfg_list)
 
     def yview(self, *args):
         self._yview(False, *args)
@@ -137,7 +152,7 @@ class LightScrollableWidget(ttk.Labelframe):
             else:
                 print 'Unknown unit %s' % unit
                 return
-            adjustment *= amount
+            adjustment *= -amount
             start_row = self._widget_start + adjustment
             stop_row = self._widget_stop + adjustment
         else:

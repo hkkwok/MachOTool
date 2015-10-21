@@ -1,6 +1,5 @@
 import Tkinter as Tk
 import ttk
-import tkFont
 from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.byte_range import ByteRange
@@ -9,7 +8,7 @@ from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
 from mach_o.non_headers.symbol_table_block import SymbolTable
 from mach_o.headers.mach_header import MachHeader, MachHeader64
-from light_scrollable import LightScrollableWidget
+from light_table import LightTable
 
 
 class SymbolWindow(WindowTab):
@@ -96,7 +95,7 @@ class SymbolWindow(WindowTab):
         if len(self._filter_mapping) > 0:
             first_matched_mach_o = self._mach_o_info[self._filter_mapping[0]]
             self.symbol_table.set_mach_o_info(first_matched_mach_o)
-            self.symbol_table.display()
+            self.symbol_table.refresh()
 
     def search(self, event):
         assert event is not None
@@ -104,17 +103,14 @@ class SymbolWindow(WindowTab):
         self.display()
 
 
-class SymbolTableView(LightScrollableWidget):
+class SymbolTableView(LightTable):
     COLUMNS = ('Index', 'Section', 'Type', 'Global', 'Defined', 'Lazy', 'Symbol')
     LIGHT_BLUE_TAG_NAME = 'light_blue_background'
     LIGHT_BLUE = '#e0e8f0'
 
     def __init__(self, parent):
-        LightScrollableWidget.__init__(self, parent, 'Symbols',
-                                       lambda p: ttk.Treeview(self, columns=self.COLUMNS[1:]))
-        self.widget.heading('#0', text=self.COLUMNS[0])
-        for col in self.COLUMNS[1:]:
-            self.widget.heading(col, text=col)
+        LightTable.__init__(self, parent, 'Symbols', self.COLUMNS)
+        self.widget.column('#0', anchor=Tk.W)
         self.widget.column(self.COLUMNS[2], width=65, stretch=False, anchor=Tk.CENTER)
         self.widget.column(self.COLUMNS[3], width=45, stretch=False, anchor=Tk.CENTER)
         self.widget.column(self.COLUMNS[4], width=45, stretch=False, anchor=Tk.CENTER)
@@ -124,41 +120,21 @@ class SymbolTableView(LightScrollableWidget):
         self._mach_o_info = None
         self.filter_pattern = None
 
-    def clear_widget(self):
-        for child in self.widget.get_children():
-            self.widget.delete(child)
-
-    def row_height(self):
-        font = tkFont.Font(font='TkDefaultFont')
-        font_height = font.metrics('linespace')
-        return font_height + 2
-
-    def widget_rows(self):
-        if self._widget_height is None:
-            return self.widget.cget('height')
-        return self._widget_height / self.row_height() - 2
-
-    def show_row(self, data_row, view_row):
+    def data(self, data_row):
         symbol, symbol_name, section_desc = self._mach_o_info.symbol(data_row)
-        if (data_row % 2) == 0:
-            kwargs = dict()
-        else:
-            kwargs = {'tag': self.LIGHT_BLUE_TAG_NAME}
-        child_id = '.' + str(view_row)
-        self.widget.insert(parent='', index=view_row, iid=child_id, text=str(symbol.index),
-                           values=(section_desc,
-                                   symbol.type(),
-                                   self._y_or_n(symbol.is_global()),
-                                   self._y_or_n(symbol.is_defined()),
-                                   self._y_or_n(symbol.is_lazy()),
-                                   symbol_name),
-                           **kwargs)
+        return (str(symbol.index),
+                section_desc,
+                symbol.type(),
+                self._y_or_n(symbol.is_global()),
+                self._y_or_n(symbol.is_defined()),
+                self._y_or_n(symbol.is_lazy()),
+                symbol_name)
 
     def set_mach_o_info(self, mach_o_info):
         self._mach_o_info = mach_o_info
-        self.rows = self._mach_o_info.num_matched
+        self.set_rows(self._mach_o_info.num_matched)
 
-    def display(self):
+    def refresh(self):
         self.clear_widget()
         self._update_widget_rows(None, None)
         widget_rows = self.widget_rows()
