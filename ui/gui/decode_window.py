@@ -319,7 +319,8 @@ class MarkedBytes(object):
 
     def set(self, start, stop):
         self.start_row, self.start_col = divmod(start, BytesView.BYTES_PER_ROW)
-        self.stop_row, self.stop_col = divmod(stop, BytesView.BYTES_PER_ROW)
+        self.stop_row, self.stop_col = divmod(stop + BytesView.BYTES_PER_ROW - 1, BytesView.BYTES_PER_ROW)
+        self.stop_row -= 1
 
     def is_marked(self, row):
         return self.start_row <= row <= self.stop_row
