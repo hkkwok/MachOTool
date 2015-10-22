@@ -8,6 +8,8 @@ class SectionBlock(Header):
     )
 
     def __init__(self, seg_name, sect_name, bytes_):
+        self.seg_name = None
+        self.sect_name = None
         seg_name = NullTerminatedStringField.get_string(seg_name)
         sect_name = NullTerminatedStringField.get_string(sect_name)
         super(SectionBlock, self).__init__('Section: %s %s' % (seg_name, sect_name),
@@ -35,7 +37,8 @@ class TextSection(SectionBlock):
 class NullTerminatedStringSection(TextSection):
     def __init__(self, sect_name, bytes_):
         self.name = None
-        self.strings = dict()
+        self._strings = dict()
+        self._indices = list()
         super(NullTerminatedStringSection, self).__init__(sect_name, bytes_)
 
     def parse_bytes(self, bytes_):
@@ -46,7 +49,8 @@ class NullTerminatedStringSection(TextSection):
         offset = 0
         for idx in xrange(len(bytes_)):
             if bytes_[idx] == '\x00':
-                self.strings[s] = offset
+                self._strings[offset] = s
+                self._indices.append(offset)
                 s = ''
                 offset = idx + 1
             else:
@@ -54,25 +58,40 @@ class NullTerminatedStringSection(TextSection):
 
     def search(self, pattern):
         results = list()
-        for (string, offset) in self.strings:
+        for (offset, string) in self._strings:
             if pattern in string:
                 results.append(string)
         return results
 
+    def num_strings(self):
+        return len(self._strings)
+
+    def item(self, index):
+        offset = self._indices[index]
+        return offset, self._strings[offset]
+
     def items(self):
         """
-        Return a list of 2-tuple of (string, offset). Offsets are relative to the beginning of the section
+        Return a list of 2-tuple of (offset, string). Offsets are relative to the beginning of the section
         """
-        return sorted(self.strings.items(), lambda x, y: cmp(x[1], y[1]))
+        # TODO - should create an iterator out of this function
+        return sorted(self._strings.items(), lambda x, y: cmp(x[0], y[0]))
+
+    def filter(self, pattern):
+        indices = list()
+        for (idx, offset) in enumerate(self._indices):
+            if pattern in self._strings[offset]:
+                indices.append(idx)
+        return indices
 
 
 class CstringSection(NullTerminatedStringSection):
     def __init__(self, bytes_):
         super(CstringSection, self).__init__('__cstring', bytes_)
-        self.name = 'CstringSection: %d strings' % len(self.strings)
+        self.name = 'CstringSection: %d strings' % self.num_strings()
 
 
 class ObjCMethodNameSection(NullTerminatedStringSection):
     def __init__(self, bytes_):
         super(ObjCMethodNameSection, self).__init__('__objc_methname', bytes_)
-        self.name = 'ObjCMethodNameSection: %d strings' % len(self.strings)
+        self.name = 'ObjCMethodNameSection: %d strings' % self.num_strings()

@@ -134,17 +134,6 @@ class SymbolTableView(LightTable):
         self._mach_o_info = mach_o_info
         self.set_rows(self._mach_o_info.num_matched)
 
-    def refresh(self):
-        self.clear_widget()
-        self._update_widget_rows(None, None)
-        widget_rows = self.widget_rows()
-        if self.rows <= widget_rows:
-            self._show(0, self.rows - 1)
-            self.yscroll.set('0.0', '1.0')
-        else:
-            self._show(0, widget_rows - 1)
-            self.yscroll.set(str(0.0), str(self.to_normalized(widget_rows)))
-
     @staticmethod
     def _y_or_n(boolean):
         if boolean:

@@ -273,13 +273,13 @@ class SectionParser(ByteRangeParser):
         elif section_desc.is_cstring():
             data_section = CstringSection(bytes_)
             cstring_br = self.add_subrange(data_section, section.size)
-            for (string, offset) in data_section.items():
+            for (offset, string) in data_section.items():
                 unescaped_string = Unescape.convert(string)
                 cstring_br.add_subrange(offset, len(string) + 1, data=Cstring(unescaped_string))
         elif section_desc.is_objc_methname():
             data_section = ObjCMethodNameSection(bytes_)
             obj_methname_br = self.add_subrange(data_section, section.size)
-            for (string, offset) in data_section.items():
+            for (offset, string) in data_section.items():
                 unescaped_string = Unescape.convert(string)
                 obj_methname_br.add_subrange(offset, len(string) + 1, data=ObjCMethodName(unescaped_string))
         else:
