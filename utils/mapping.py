@@ -1,8 +1,24 @@
 class Mapping(object):
     """
-    This class defines a 1-to-1 mapping that provides efficient bi-directional lookup
+    This class defines a 1-to-1 mapping that provides efficient bi-directional
+    lookup. Its constructor takes a dict. And it behaves much like a dict. For
+    example, suppose we have a set of employee records that map id to name:
+
+    employees = Mapping({101: 'Bob', 102: 'John', 103: 'Mary', 104: 'Ellen'})
+
+    employees[101] = 'Bob'
+    employees.items = [(101, 'Bob'), (102, 'John'), (103: 'Mary'), (104: 'Ellen')
+
+    But it can do reverse lookup without walking:
+
+    employees['Bob'] = 101
     """
     def __init__(self, items=None):
+        """
+        Constructor takes a dict but adds the reverse (value-to-key) lookup.
+        :param items:
+        :return:
+        """
         self.key2value = dict()
         self.value2key = dict()
 

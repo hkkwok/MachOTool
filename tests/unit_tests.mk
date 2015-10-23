@@ -3,7 +3,8 @@
 UTILS_TESTS := \
 	test_range \
 	test_byte_range \
-	test_commafy
+	test_commafy \
+	test_mapping
 
 MACH_O_TESTS := \
 	test_fat_header \
