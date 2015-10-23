@@ -8,6 +8,7 @@ from utils.byte_range import ByteRange
 from utils.commafy import commafy
 from mach_o.headers.mach_header import MachHeader, MachHeader64
 from mach_o.non_headers.section_block import CstringSection, ObjCMethodNameSection, NullTerminatedStringSection
+from mach_o.non_headers.segment_block import SegmentBlock
 
 
 class StringWindow(WindowTab):
@@ -47,6 +48,7 @@ class StringWindow(WindowTab):
 
         self._mach_o_info = list()
         self._filter_mapping = None
+        self._current_segemnt = None  # only used by _parse()
 
     def clear(self):
         self.clear_ui()
@@ -65,6 +67,7 @@ class StringWindow(WindowTab):
         assert isinstance(byte_range, ByteRange)
         self.clear_states()
         byte_range.iterate(self._parse)
+        self._current_segemnt = None
         self.byte_range = byte_range
         self.display()
 
@@ -74,10 +77,12 @@ class StringWindow(WindowTab):
             mach_o_hdr = br.data
             cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
             self._mach_o_info.append(_MachOInfo('Mach-O: ' + cpu_type, br.abs_start()))
+        elif isinstance(br.data, SegmentBlock):
+            self._current_segemnt = br.data.seg_name
         elif isinstance(br.data, (CstringSection, ObjCMethodNameSection)):
             assert len(self._mach_o_info) > 0
             section = br.data
-            self._mach_o_info[-1].add_section('', section, br.abs_start())
+            self._mach_o_info[-1].add_section(self._current_segemnt, section, br.abs_start())
 
     def display(self):
         filter_pattern = self.search_entry.get()
