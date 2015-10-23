@@ -32,6 +32,8 @@ class TestRange(unittest.TestCase):
         self.assertFalse(a >= c)
         self.assertFalse(a == c)
         self.assertTrue(a != c)
+        self.assertFalse(a in c)
+        self.assertFalse(c in a)
 
         # A strict superset of 'd'.
         d = Range(2, 4)
@@ -41,6 +43,8 @@ class TestRange(unittest.TestCase):
         self.assertFalse(a > d)
         self.assertFalse(a == d)
         self.assertTrue(a != d)
+        self.assertTrue(d in a)
+        self.assertFalse(a in d)
 
     def test_errors(self):
         self.assertRaises(ValueError, lambda: Range(-1, 2))
