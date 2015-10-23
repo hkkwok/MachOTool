@@ -19,7 +19,8 @@ class TreeTable(ttk.Labelframe):
         self.select_callback = None
         self.open_callback = None
         self.close_callback = None
-        self._column_widths = [0] * len(columns)
+        self._min_column_widths = [self.FONT.measure(x) for x in self.columns]
+        self._column_widths = self._min_column_widths[:]
         self._widget_width = None
 
         ttk.Labelframe.__init__(self, parent, text=name)
@@ -55,7 +56,7 @@ class TreeTable(ttk.Labelframe):
     def clear(self):
         for child in self.tree.get_children():
             self.tree.delete(child)
-        self._column_widths = [0] * len(self._column_widths)
+        self._column_widths = self._min_column_widths[:]
 
     def selected_path(self):
         selection = self.tree.selection()[0]

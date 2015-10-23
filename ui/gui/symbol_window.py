@@ -35,9 +35,11 @@ class SymbolWindow(WindowTab):
         self.panedwindow.pack(side=Tk.BOTTOM, fill=Tk.BOTH, expand=True)
 
         self.mach_o_table = TreeTable(self, 'Mach-O', columns=self.MACH_O_TABLE_COLUMNS)
+        self.mach_o_table.tree.configure(selectmode='browse')
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[1], width=75, stretch=False, anchor=Tk.E)
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[2], width=75, stretch=False, anchor=Tk.E)
         self.mach_o_table.tree.tag_configure(self.LIGHT_BLUE_TAG_NAME, background=self.LIGHT_BLUE)
+        self.mach_o_table.select_callback = self._mach_o_selected
         self.panedwindow.add(self.mach_o_table)
 
         self.symbol_table = SymbolTableView(self)
@@ -93,14 +95,19 @@ class SymbolWindow(WindowTab):
 
         # Update symbol table
         if len(self._filter_mapping) > 0:
-            first_matched_mach_o = self._mach_o_info[self._filter_mapping[0]]
-            self.symbol_table.set_mach_o_info(first_matched_mach_o)
-            self.symbol_table.refresh()
+            self.mach_o_table.tree.selection_set('.0')
 
     def search(self, event):
         assert event is not None
         self.clear_ui()
         self.display()
+
+    def _mach_o_selected(self, path):
+        assert len(path) == 1  # a flat list should only return a length-1 list
+        mach_o = self._mach_o_info[path[0]]
+        self.symbol_table.set_mach_o_info(mach_o)
+        self.symbol_table.refresh()
+
 
 
 class SymbolTableView(LightTable):

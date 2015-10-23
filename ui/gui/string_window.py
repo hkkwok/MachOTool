@@ -33,10 +33,12 @@ class StringWindow(WindowTab):
         self.panedwindow = ttk.Panedwindow(self, orient=Tk.VERTICAL)
         self.panedwindow.pack(side=Tk.BOTTOM, fill=Tk.BOTH, expand=True)
 
-        self.mach_o_table = TreeTable(self, 'Mach-O', columns=self.MACH_O_TABLE_COLUMNS)
+        self.mach_o_table = TreeTable(self, 'Mach-O / Sections', columns=self.MACH_O_TABLE_COLUMNS)
+        self.mach_o_table.tree.configure(selectmode='browse')
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[1], anchor=Tk.E)
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[2], anchor=Tk.E)
         self.mach_o_table.tree.column(self.MACH_O_TABLE_COLUMNS[3], anchor=Tk.E)
+        self.mach_o_table.select_callback = self._mach_o_selected
         self.panedwindow.add(self.mach_o_table)
 
         self.string_table = StringTableView(self)
@@ -81,34 +83,54 @@ class StringWindow(WindowTab):
         filter_pattern = self.search_entry.get()
 
         # Update Mach-O table
-        self._filter_mapping = list()
-        cur_row = 0
-        for (mach_o_idx, mach_o_info) in enumerate(self._mach_o_info):
+        self._filter_mapping = dict()
+        first_matched_id = None
+        mach_o_idx = 0
+        for mach_o_info in self._mach_o_info:
             # TODO - Add graphical progress indicator as this operation can be time consuming
             num_matches = mach_o_info.filter(filter_pattern)
             if num_matches == 0:
                 continue
-            mach_o_id = '.' + str(len(self._filter_mapping))
-            self.mach_o_table.add('', cur_row,
+            mach_o_id = '.' + str(mach_o_idx)
+            self.mach_o_table.add('', mach_o_idx,
                                   (mach_o_info.desc, commafy(mach_o_info.offset),
-                                   mach_o_info.num_strings, mach_o_info.num_matched))
-            self._filter_mapping.append(mach_o_idx)
+                                   commafy(mach_o_info.num_strings), commafy(mach_o_info.num_matched)))
+            mach_o_idx += 1
+            if first_matched_id is None:
+                first_matched_id = mach_o_id
+            self._filter_mapping[mach_o_id] = mach_o_info.string_sections
 
-            for (section_idx, sect_info) in enumerate(mach_o_info.string_sections):
-                self.mach_o_table.add(mach_o_id, section_idx,
-                                      (sect_info.desc, commafy(sect_info.offset),
-                                       sect_info.num_strings, sect_info.num_matched))
+            section_idx = 0
+            for sect_info in mach_o_info.string_sections:
+                if sect_info.num_matched == 0:
+                    continue
+                sect_id = self.mach_o_table.add(mach_o_id, section_idx,
+                                                (sect_info.desc, commafy(sect_info.offset),
+                                                 commafy(sect_info.num_strings), commafy(sect_info.num_matched)))
+                section_idx += 1
+                self._filter_mapping[sect_id] = [sect_info]
+            self.mach_o_table.tree.item(mach_o_id, open=True)
 
         # Update symbol table
-        if len(self._filter_mapping) > 0:
-            first_matched_mach_o = self._mach_o_info[self._filter_mapping[0]]
-            self.string_table.set_mach_o_info(first_matched_mach_o)
-            self.string_table.refresh()
+        if first_matched_id is not None:
+            self.mach_o_table.tree.selection_set(first_matched_id)
 
     def search(self, event):
         assert event is not None  # for getting rid of pycharm warning
         self.clear_ui()
         self.display()
+
+    def _mach_o_selected(self, path):
+        """
+        When an item in the Mach-O table is clicked, we set one of a list of section to the
+        string table for display.
+        :param path:
+        :return:
+        """
+        id_ = '.' + '.'.join([str(x) for x in path])
+        sections = self._filter_mapping[id_]
+        self.string_table.set_sections(sections)
+        self.string_table.refresh()
 
 
 class StringTableView(LightTable):
@@ -118,16 +140,23 @@ class StringTableView(LightTable):
         LightTable.__init__(self, parent, 'Strings', self.COLUMNS)
         self.widget.column('#0', anchor=Tk.E)
         self.widget.configure(selectmode='none')
-        self._mach_o_info = None
+        self._sections = None
         self.filter_pattern = None
 
     def data(self, data_row):
-        offset, string = self._mach_o_info.string(data_row)
-        return commafy(offset), string
+        for sect in self._sections:
+            if data_row >= sect.num_matched:
+                data_row -= sect.num_matched
+                continue
+            offset, string = sect.string(data_row)
+            return commafy(offset), string
+        assert False  # should never get here
 
-    def set_mach_o_info(self, mach_o_info):
-        self._mach_o_info = mach_o_info
-        self.set_rows(self._mach_o_info.num_matched)
+    def set_sections(self, sections):
+        assert isinstance(sections, list)
+        self._sections = sections
+        num_matched = sum([sect.num_matched for sect in self._sections])
+        self.set_rows(num_matched)
 
 
 class _MachOInfo(object):
@@ -148,16 +177,6 @@ class _MachOInfo(object):
     def filter(self, pattern):
         self.num_matched = sum([sect.filter(pattern) for sect in self.string_sections])
         return self.num_matched
-
-    def string(self, matched_idx):
-        assert 0 <= matched_idx < self.num_matched
-        for sect in self.string_sections:
-            num_matched = sect.num_matched
-            if matched_idx >= num_matched:
-                matched_idx -= num_matched
-                continue
-            return sect.string(matched_idx)
-        assert False  # should never get here
 
 
 class _StringSectionInfo(object):
