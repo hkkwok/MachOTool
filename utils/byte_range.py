@@ -57,15 +57,17 @@ class ByteRange(Range):
     def insert_subrange(self, offset, length, data=None):
         """
         Unlike add_subrange() which appends a new subrange on top of current range, this method
-        inserts a subrange between this byte range and existing subrange that are covered by
+        inserts a subrange between this byte range and existing subranges that are covered by
         this new subrange. It can be used for grouping for example.
         """
         # Make sure that there is no subrange that spans the boundary (start and / or stop).
         subsubranges = list()
         tmp_range = Range(offset, offset + length)
         for sr in self.subranges:
-            if (sr < tmp_range) or (sr > tmp_range):
+            if sr < tmp_range:
                 continue
+            if sr > tmp_range:
+                break  # we have gone past anything that may overlap. no need to continue
             if sr in tmp_range:
                 subsubranges.append(sr)
             else:
@@ -141,31 +143,24 @@ class ByteRange(Range):
             return self.start
         return self.subranges[-1].stop
 
-    def _iterate_leaves(self, callback, start, level):
+    def iterate_leaves(self, callback, start=0, level=0):
+        assert callable(callback)
         if len(self.subranges) == 0:
             result = callback(self, start, start + len(self), level)
             return [result]
         results = list()
         for sr in self.subranges:
-            results += sr._iterate_leaves(callback, start + sr.start, level + 1)
+            results += sr.iterate_leaves(callback, start + sr.start, level + 1)
         return results
 
-    def _iterate(self, callback, start, level):
+    def iterate(self, callback, start=0, level=0):
         this_result = callback(self, start, start + len(self), level)
         results = list()
         if this_result is not None:
             results.append(this_result)
         for sr in self.subranges:
-            results += sr._iterate(callback, start + sr.start, level + 1)
+            results += sr.iterate(callback, start + sr.start, level + 1)
         return results
-
-    def iterate_leaves(self, callback):
-        assert callable(callback)
-        return self._iterate_leaves(callback, 0, 0)
-
-    def iterate(self, callback):
-        assert callable(callback)
-        return self._iterate(callback, 0, 0)
 
     def scan_gap(self, callback):
         assert callable(callback)
