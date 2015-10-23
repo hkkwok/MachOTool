@@ -4,5 +4,5 @@ def commafy(val):
     :param val: A int or long
     :return: A string that represents the value in decimal with a comma separator every 3 digits.
     """
-    assert isinstance(val, (int, long))
+    assert isinstance(val, (int, long, float))
     return format(val, ',')

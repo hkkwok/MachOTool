@@ -2,7 +2,8 @@
 
 UTILS_TESTS := \
 	test_range \
-	test_byte_range
+	test_byte_range \
+	test_commafy
 
 MACH_O_TESTS := \
 	test_fat_header \
@@ -10,7 +11,8 @@ MACH_O_TESTS := \
 	test_load_command \
 	test_segment_command \
 	test_symtab_command \
-	test_dysymtab_command
+	test_dysymtab_command 
+	
 
 ALL_TESTS := $(UTILS_TESTS) $(MACH_O_TESTS)
 
