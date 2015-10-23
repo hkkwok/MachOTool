@@ -109,7 +109,6 @@ class SymbolWindow(WindowTab):
         self.symbol_table.refresh()
 
 
-
 class SymbolTableView(LightTable):
     COLUMNS = ('Index', 'Section', 'Type', 'Global', 'Defined', 'Lazy', 'Symbol')
     LIGHT_BLUE_TAG_NAME = 'light_blue_background'
