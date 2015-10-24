@@ -1,4 +1,5 @@
-# 1. Introduction
+## Introduction
+***
 
 Mach-O Tool is meant to be a portable tool for analyzing Mach-O binaries. It is written entirely
 in Python and should work with any standard Python 2.7 installation without additional packages.
@@ -15,7 +16,7 @@ It contains 3 components:
 
 <br/><br/>
   
-# 2. Command-Line Mode
+## Command-Line Mode
 ***
 
 To see available options, just do: ./machotool.py -h
@@ -92,7 +93,7 @@ To list all required shared libraries:
 
 <br/><br/>
 
-# 3. Interactive Mode
+## Interactive Mode
 ***
 If you need to see various fields of a binary, it may be faster to enter
 interative mode which analyzes the binary once and allows you to enter
@@ -109,7 +110,7 @@ For example, the equivalent command for '-m' option is 'mach-header'
 
 <br/><br/>
 
-# 4. GUI Mode
+## GUI Mode
 ***
 To run GUI mode, use -g flag:
 
