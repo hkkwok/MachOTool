@@ -5,6 +5,11 @@ class ByteRangeParser(object):
         self.cmd_size = None
         self.current = None
 
+    def initialize(self, start, cmd_size):
+        self.start = start
+        self.cmd_size = cmd_size
+        self.current = self.start
+
     def add_subrange(self, data=None, length=None):
         if length is None:
             length = self.start + self.cmd_size - self.current

@@ -7,9 +7,7 @@ from utils.byte_range_parser import ByteRangeParser
 class Fat(ByteRangeParser):
     def __init__(self, fat_br):
         super(Fat, self).__init__(fat_br)
-        self.start = 0
-        self.current = 0
-        self.cmd_size = len(fat_br)
+        self.initialize(0, len(fat_br))
 
         # Create the fat header
         hdr_size = FatHeader.get_size()

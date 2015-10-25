@@ -114,9 +114,7 @@ class LoadCommandParser(ByteRangeParser):
             self.add_subrange(Padding(desc), trailing_gap)
 
     def parse(self, generic_lc, start):
-        self.start = start
-        self.current = self.start
-        self.cmd_size = generic_lc.cmdsize
+        self.initialize(start, generic_lc.cmdsize)
 
         # Try to create a specific LC object for the header
         cmd_desc = LoadCommandCommand.get_desc(generic_lc.cmd)
@@ -248,9 +246,7 @@ class SectionParser(ByteRangeParser):
 
     def parse(self, section_desc):
         section = section_desc.section
-        self.start = section.offset
-        self.current = self.start
-        self.cmd_size = section.size
+        self.initialize(section.offset, section.size)
 
         seg_name = NullTerminatedStringField.get_string(section.segname)
         sect_name = NullTerminatedStringField.get_string(section.sectname)
@@ -293,9 +289,7 @@ class SegmentParser(ByteRangeParser):
     def parse(self, segment_desc):
         segment_command = segment_desc.segment_command
         assert isinstance(segment_command, (SegmentCommand, SegmentCommand64))
-        self.start = segment_command.fileoff
-        self.cmd_size = segment_command.filesize
-        self.current = self.start
+        self.initialize(segment_command.fileoff, segment_command.filesize)
 
         segment = SegmentBlock(segment_desc.name)
         br = self.add_subrange_beneath(segment)
@@ -325,8 +319,7 @@ class DyldInfoParser(LinkEditParser):
     def parse(self, dyld_info_command):
         if dyld_info_command is None:
             return
-        self.start = 0
-        self.cmd_size = len(self.byte_range)
+        self.initialize(0, len(self.byte_range))
         self.add_section(dyld_info_command.rebase_off, dyld_info_command.rebase_size,
                          data=LinkEditData('rebase section'))
         self.add_section(dyld_info_command.bind_off, dyld_info_command.bind_size,
@@ -360,8 +353,7 @@ class SymtabParser(LinkEditParser):
     def parse(self, symtab_command):
         if symtab_command is None:
             return
-        self.start = 0
-        self.cmd_size = len(self.byte_range)
+        self.initialize(0, len(self.byte_range))
         if ProgressIndicator.ENABLED:
             progress = ProgressIndicator('parsing symbol table...', 4096)
         else:
@@ -423,8 +415,7 @@ class DysymtabParser(LinkEditParser):
         if dysymtab_command is None:
             return
         assert isinstance(dysymtab_command, DysymtabCommand)
-        self.start = 0
-        self.cmd_size = len(self.byte_range)
+        self.initialize(0, len(self.byte_range))
         self.add_section(dysymtab_command.extrefsymoff, dysymtab_command.nextrefsyms * 4,
                          data=ExtRefSymbolTable(dysymtab_command.nextrefsyms))
         indirect_sym_size = 4
@@ -447,8 +438,7 @@ class LinkeditDataParser(LinkEditParser):
 
     def parse(self, linkedit_data_command):
         assert isinstance(linkedit_data_command, LinkeditDataCommand)
-        self.start = 0
-        self.cmd_size = len(self.byte_range)
+        self.initialize(0, len(self.byte_range))
 
         if linkedit_data_command.cmd == LoadCommandCommand.COMMANDS['LC_FUNCTION_STARTS']:
             desc = 'function starts'
