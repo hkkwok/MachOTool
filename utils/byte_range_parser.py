@@ -26,3 +26,11 @@ class ByteRangeParser(object):
         if length is None:
             length = self.start + self.cmd_size - self.current
         return self.byte_range.bytes(self.current, self.current + length)
+
+    def _add_padding(self, desc, offset=None):
+        if offset is None:
+            offset = self.cmd_size
+        gap = self.start + offset - self.current
+        if gap != 0:
+            assert gap > 0  # there is a gap in front
+            self.add_subrange(desc, gap)

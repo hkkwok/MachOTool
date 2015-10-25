@@ -95,23 +95,13 @@ class LoadCommandParser(ByteRangeParser):
         self.lc = None
         self.hdr_size = None
 
-    def _add_gap_padding(self, desc, offset):
-        if self.start + offset != self.current:
-            # There is a gap in front
-            gap = self.start + offset - self.current
-            assert gap > 0
-            self.add_subrange(desc, gap)
-
     def _add_lc_str(self, name, offset):
-        self._add_gap_padding(UnexpectedPadding('unexpected gap'), offset)
+        self._add_padding(UnexpectedPadding('unexpected gap'), offset)
         lc_str = LcStr.find_str(name, self._get_bytes())
         self.add_subrange(lc_str, len(lc_str))
 
-    def _add_trailing_gap(self, desc):
-        trailing_gap = self.start + self.cmd_size - self.current
-        if trailing_gap != 0:
-            assert trailing_gap > 0
-            self.add_subrange(Padding(desc), trailing_gap)
+    def _add_alignment_padding(self):
+        self._add_padding(Padding('alignment'))
 
     def parse(self, generic_lc, start):
         self.initialize(start, generic_lc.cmdsize)
@@ -155,13 +145,13 @@ class LoadCommandParser(ByteRangeParser):
         elif cmd_desc == 'LC_LOAD_DYLIB':
             assert isinstance(lc, DylibCommand)
             self._add_lc_str('dylib_name', lc.dylib_name_offset)  # parse dylib.name
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_ID_DYLINKER', 'LC_LOAD_DYLINKER', 'LC_DYLD_ENVIRONMENT'):
             assert isinstance(lc, DylinkerCommand)
             self._add_lc_str('name', lc.name_offset)  # parse name
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_DYLD_INFO', 'LC_DYLD_INFO_ONLY'):
@@ -180,36 +170,36 @@ class LoadCommandParser(ByteRangeParser):
         elif cmd_desc == 'LC_SUB_FRAMEWORK':
             assert isinstance(lc, SubFrameworkCommand)
             self._add_lc_str('umbrella', lc.umbrella_offset)
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_CLIENT':
             assert isinstance(lc, SubClientCommand)
             self._add_lc_str('client', lc.client_offset)
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_UMBRELLA':
             assert isinstance(lc, SubUmbrellaCommand)
             self._add_lc_str('sub_umbrella', lc.sub_umbrella_offset)
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_SUB_LIBRARY':
             assert isinstance(lc, SubLibraryCommand)
             self._add_lc_str('library', lc.library_offset)
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_PREBOUND_DYLIB':
             assert isinstance(lc, PreboundDylibCommand)
             self._add_lc_str('name', lc.name_offset)
-            self._add_gap_padding(UnexpectedPadding('unexpected gap'), lc.linked_modules_offset)
+            self._add_padding(UnexpectedPadding('unexpected gap'), lc.linked_modules_offset)
             # get the module bit vector
             num_bytes = (lc.nmodules + 7) / 8
             bit_vector = self._get_bytes(num_bytes)
             self.add_subrange('<modules:%s>' % ' '.join(['%02x' % x for x in bit_vector]))
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
         elif cmd_desc == 'LC_TWOLEVEL_HINTS':
@@ -232,12 +222,12 @@ class LoadCommandParser(ByteRangeParser):
         elif cmd_desc == 'LC_RPATH':
             assert isinstance(lc, RpathCommand)
             self._add_lc_str('path', lc.path_offset)
-            self._add_trailing_gap('alignment')
+            self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
                                             data=LoadCommandBlock(cmd_desc))
 
         # Account for any trailing gap
-        self._add_trailing_gap(cmd_desc)
+        self._add_padding(Padding(cmd_desc))
 
 
 class SectionParser(ByteRangeParser):
