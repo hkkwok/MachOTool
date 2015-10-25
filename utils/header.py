@@ -283,11 +283,13 @@ class UnixTimeField(Field):
     """
     Similar to Field except assume the value is a UNIX time_t.
     """
+    FORMAT = '%Y-%m-%d %H:%M:%S'
+
     def display(self, header):
         if self.mnemonic:
             value = self._get_value(header)
             timestamp = datetime.datetime.fromtimestamp(value)
-            return timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            return timestamp.strftime(self.FORMAT)
         return super(UnixTimeField, self).display(header)
 
 
@@ -309,13 +311,15 @@ class VersionField(HexField):
 
 class BitFields(HexField):
     """
-    A value that contains multiple bitfields. Each field can only contain 1 bit and each bit must unique
+    A value that contains multiple bitfields. Each field can only contain 1 bit and each bit must be unique
     """
     BITFIELDS = None
     BITS_MASK = None
 
-    def __init__(self, name, format_):
+    def __init__(self, name, format_, bitfields=None):
         super(BitFields, self).__init__(name, format_)
+        if bitfields is not None:
+            self.__class__.BITFIELDS = bitfields
         if self.BITS_MASK is None:
             sum_ = 0
             mask = 0
@@ -347,7 +351,9 @@ class EnumField(Field):
     ENUMS = None
     ENUMS_MAPPING = None
 
-    def __init__(self, name, format_):
+    def __init__(self, name, format_, enums=None):
+        if enums is not None:
+            self.__class__.ENUMS = enums
         self._init_mapping()
         super(EnumField, self).__init__(name, format_)
 
