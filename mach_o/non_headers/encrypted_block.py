@@ -7,4 +7,5 @@ class EncryptedBlock(Header):
     )
 
     def __init__(self, cryptid):
+        self.cryptid = None
         super(EncryptedBlock, self).__init__('EncryptedSegment: %d' % cryptid, cryptid=cryptid)

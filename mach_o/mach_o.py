@@ -151,7 +151,7 @@ class MachO(object):
         for (seg_name, segment_desc) in self.segments.items():
             for (sect_name, section_desc) in segment_desc.sections.items():
                 ProgressIndicator.display('parsing section %s, %s\n', seg_name, sect_name)
-                SectionParser(mach_o_br).parse(section_desc)
+                SectionParser(mach_o_br, self).parse(section_desc)
 
         # Add all encryption blocks
         for lc in self.encryption_info_commands:
@@ -166,3 +166,11 @@ class MachO(object):
                 self.linkedit_br = br
 
         ProgressIndicator.display('mach-o parsed\n')
+
+    def is_section_encrypted(self, section):
+        if len(self.encryption_info_commands) == 0:
+            return False
+        for enc_info in self.encryption_info_commands:
+            if enc_info.is_encrypted() and enc_info.covers(section):
+                return True
+        return False

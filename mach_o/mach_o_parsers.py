@@ -2,6 +2,7 @@ from utils.byte_range_parser import ByteRangeParser
 from utils.unescape import Unescape
 from utils.progress_indicator import ProgressIndicator
 from utils.header import NullTerminatedStringField
+from utils.range import Range
 
 from headers.lc_str import LcStr
 from headers.load_command import LoadCommandCommand, LoadCommand
@@ -231,13 +232,15 @@ class LoadCommandParser(ByteRangeParser):
 
 
 class SectionParser(ByteRangeParser):
-    def __init__(self, mach_o_br):
+    def __init__(self, mach_o_br, mach_o):
         super(SectionParser, self).__init__(mach_o_br)
+        self.mach_o = mach_o
 
     def parse(self, section_desc):
         section = section_desc.section
         self.initialize(section.offset, section.size)
 
+        # Get the segment and section names
         seg_name = NullTerminatedStringField.get_string(section.segname)
         sect_name = NullTerminatedStringField.get_string(section.sectname)
         bytes_ = self._get_bytes()
@@ -247,6 +250,15 @@ class SectionParser(ByteRangeParser):
             data_section = DataSection(sect_name, bytes_)
         else:
             data_section = SectionBlock(seg_name, sect_name, bytes_)
+
+        # If the section is inside a encrypted region (specificed by LC_ENCRYPTION_INFO),
+        # we cannot parse it because we don't have the decryption key. So, we just
+        # create a block without trying to parse its content.
+        if self.mach_o.is_section_encrypted(section):
+            data_section.name += ' [ENCRYPTED]'
+            self.add_subrange(data_section, section.size)
+            return
+
         if section.offset == 0:
             # .bss and .common sections only exist in VM but not in the file. So, they have an offset of 0
             # which aliases with the mach header. We do not add any subrange for these sections since
