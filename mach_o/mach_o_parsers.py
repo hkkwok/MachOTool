@@ -88,6 +88,20 @@ class SectionDescriptor(object):
 
 
 class LoadCommandParser(ByteRangeParser):
+    # All LCs that have a lc_str goes here. The key is the LC name and the value is a
+    # 3-tuple of (lc_str name, lc_str offset field name, LC command class)
+    LC_STR_CMDS = {
+        'LC_LOAD_DYLIB': ('dylib_name', 'dylib_name_offset', DylibCommand),
+        'LC_ID_DYLINKER': ('name', 'name_offset', DylinkerCommand),
+        'LC_LOAD_DYLINKER': ('name', 'name_offset', DylinkerCommand),
+        'LC_DYLD_ENVIRONMENT': ('name', 'name_offset', DylinkerCommand),
+        'LC_SUB_FRAMEWORK': ('umbrella', 'umbrella_offset', SubFrameworkCommand),
+        'LC_SUB_CLIENT': ('client', 'client_offset', SubClientCommand),
+        'LC_SUB_UMBRELLA': ('sub_umbrella', 'sub_umbrella_offset', SubUmbrellaCommand),
+        'LC_SUB_LIBRARY': ('library', 'library_offset', SubLibraryCommand),
+        'LC_RPATH': ('path', 'path_offset', RpathCommand),
+    }
+
     def __init__(self, byte_range, mach_o):
         super(LoadCommandParser, self).__init__(byte_range)
         self.mach_o = mach_o
@@ -102,12 +116,6 @@ class LoadCommandParser(ByteRangeParser):
 
     def _add_alignment_padding(self):
         self.add_padding(Padding('alignment'))
-
-    def _process_lc_str_command(self, cmd_desc, field_name, field_offset):
-        self._add_lc_str(field_name, field_offset)
-        self._add_alignment_padding()
-        self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                        data=LoadCommandBlock(cmd_desc))
 
     def parse(self, generic_lc, start):
         self.initialize(start, generic_lc.cmdsize)
@@ -148,12 +156,14 @@ class LoadCommandParser(ByteRangeParser):
                 segment_desc.add_section(section)
             if lc.nsects > 0:
                 self.add_subrange_beneath(LoadCommandBlock(cmd_desc), self.cmd_size)
-        elif cmd_desc == 'LC_LOAD_DYLIB':
-            assert isinstance(lc, DylibCommand)
-            self._process_lc_str_command(cmd_desc, 'dylib_name', lc.dylib_name_offset)
-        elif cmd_desc in ('LC_ID_DYLINKER', 'LC_LOAD_DYLINKER', 'LC_DYLD_ENVIRONMENT'):
-            assert isinstance(lc, DylinkerCommand)
-            self._process_lc_str_command(cmd_desc, 'name', lc.name_offset)
+        elif cmd_desc in self.LC_STR_CMDS:
+            field_name, field_offset_name, field_class = self.LC_STR_CMDS[cmd_desc]
+            assert isinstance(lc, field_class)
+            field_offset = getattr(lc, field_offset_name)
+            self._add_lc_str(field_name, field_offset)
+            self._add_alignment_padding()
+            self.byte_range.insert_subrange(self.start, self.cmd_size,
+                                            data=LoadCommandBlock(cmd_desc))
         elif cmd_desc in ('LC_DYLD_INFO', 'LC_DYLD_INFO_ONLY'):
             assert isinstance(lc, DyldInfoCommand)
             # Record the rebase, different types of bind and export sections
@@ -167,18 +177,6 @@ class LoadCommandParser(ByteRangeParser):
         elif cmd_desc in ('LC_FUNCTION_STARTS', 'LC_DATA_IN_CODE', 'LC_DYLIB_CODE_SIGN_DRS', 'LC_CODE_SIGNATURE'):
             assert isinstance(lc, LinkeditDataCommand)
             LinkeditDataParser(self.byte_range, self.mach_o.arch_width).parse(lc)
-        elif cmd_desc == 'LC_SUB_FRAMEWORK':
-            assert isinstance(lc, SubFrameworkCommand)
-            self._process_lc_str_command(cmd_desc, 'umbrella', lc.umbrella_offset)
-        elif cmd_desc == 'LC_SUB_CLIENT':
-            assert isinstance(lc, SubClientCommand)
-            self._process_lc_str_command(cmd_desc, 'client', lc.client_offset)
-        elif cmd_desc == 'LC_SUB_UMBRELLA':
-            assert isinstance(lc, SubUmbrellaCommand)
-            self._process_lc_str_command(cmd_desc, 'sub_umbrella', lc.sub_umbrella_offset)
-        elif cmd_desc == 'LC_SUB_LIBRARY':
-            assert isinstance(lc, SubLibraryCommand)
-            self._process_lc_str_command(cmd_desc, 'library', lc.library_offset)
         elif cmd_desc == 'LC_PREBOUND_DYLIB':
             assert isinstance(lc, PreboundDylibCommand)
             self._add_lc_str('name', lc.name_offset)
@@ -207,9 +205,6 @@ class LoadCommandParser(ByteRangeParser):
         elif cmd_desc == 'LC_LINKER_OPTION':
             assert isinstance(lc, LinkerOptionCommand)
             raise NotImplementedError()  # TODO - need to make a test binary
-        elif cmd_desc == 'LC_RPATH':
-            assert isinstance(lc, RpathCommand)
-            self._process_lc_str_command(cmd_desc, 'path', lc.path_offset)
 
         # Account for any trailing gap
         self.add_padding(Padding(cmd_desc))
