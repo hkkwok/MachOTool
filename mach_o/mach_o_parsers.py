@@ -25,6 +25,10 @@ from headers.linker_option_command import LinkerOptionCommand
 from headers.nlist import Nlist, Nlist64
 from headers.indirect_symbol import IndirectSymbol
 from headers.rpath_command import RpathCommand
+from headers.version_min_command import VersionMinCommand
+from headers.source_version_command import SourceVersionCommand
+from headers.entry_point_command import EntryPointCommand
+from headers.uuid_command import UuidCommand
 
 from non_headers.padding import UnexpectedPadding, Padding
 from non_headers.load_command_block import LoadCommandBlock
@@ -88,6 +92,44 @@ class SectionDescriptor(object):
 
 
 class LoadCommandParser(ByteRangeParser):
+    # Load commands for 32-bit architectures
+    COMMANDS = {
+        'LC_SEGMENT': SegmentCommand,
+        'LC_SEGMENT_64': SegmentCommand64,
+        'LC_SYMTAB': SymtabCommand,
+        'LC_DYSYMTAB': DysymtabCommand,
+        'LC_LOAD_DYLIB': DylibCommand,
+        'LC_LOAD_WEAK_DYLIB': DylibCommand,
+        'LC_ID_DYLIB': DylibCommand,
+        'LC_VERSION_MIN_MACOSX': VersionMinCommand,
+        'LC_VERSION_MIN_IPHONEOS': VersionMinCommand,
+        'LC_SOURCE_VERSION': SourceVersionCommand,
+        'LC_MAIN': EntryPointCommand,
+        'LC_CODE_SIGNATURE': LinkeditDataCommand,
+        'LC_SEGMENT_SPLIT_INFO': LinkeditDataCommand,
+        'LC_FUNCTION_STARTS': LinkeditDataCommand,
+        'LC_DATA_IN_CODE': LinkeditDataCommand,
+        'LC_DYLIB_CODE_SIGN_DRS': LinkeditDataCommand,
+        'LC_LINKER_OPTIMIZATION_HINT': LinkeditDataCommand,
+        'LC_UUID': UuidCommand,
+        'LC_ID_DYLINKER': DylinkerCommand,
+        'LC_LOAD_DYLINKER': DylinkerCommand,
+        'LC_DYLD_ENVIRONMENT': DylinkerCommand,
+        'LC_DYLD_INFO': DyldInfoCommand,
+        'LC_DYLD_INFO_ONLY': DyldInfoCommand,
+        'LC_SUB_FRAMEWORK': SubFrameworkCommand,
+        'LC_SUB_CLIENTI': SubClientCommand,
+        'LC_SUB_UMBRELLA': SubUmbrellaCommand,
+        'LC_SUB_LIBRARY': SubLibraryCommand,
+        'LC_PREBOUND_DYLIB': PreboundDylibCommand,
+        'LC_TWOLEVEL_HINTS': TwolevelHintsCommand,
+        'LC_PREBIND_CKSUM': PrebindCksumCommand,
+        'LC_ENCRYPTION_INFO': EncryptionInfoCommand,
+        'LC_ENCRYPTION_INFO_64': EncryptionInfoCommand64,
+        'LC_LINKER_OPTION': LinkerOptionCommand,
+        'LC_RPATH': RpathCommand,
+    }
+
     # All LCs that have a lc_str goes here. The key is the LC name and the value is a
     # 3-tuple of (lc_str name, lc_str offset field name, LC command class)
     LC_STR_CMDS = {
@@ -122,7 +164,7 @@ class LoadCommandParser(ByteRangeParser):
 
         # Try to create a specific LC object for the header
         cmd_desc = LoadCommandCommand.get_desc(generic_lc.cmd)
-        cmd_class = self.mach_o.command_table.get(cmd_desc, None)
+        cmd_class = self.COMMANDS.get(cmd_desc, None)
         lc = None
         if cmd_class is not None:
             self.hdr_size = cmd_class.get_size()

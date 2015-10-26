@@ -1,26 +1,6 @@
 from headers.mach_header import MachHeader, MachHeader64
 from headers.load_command import LoadCommand
-from headers.segment_command import SegmentCommand, SegmentCommand64
-from headers.symtab_command import SymtabCommand
-from headers.dysymtab_command import DysymtabCommand
-from headers.dylib_command import DylibCommand
-from headers.version_min_command import VersionMinCommand
-from headers.source_version_command import SourceVersionCommand
-from headers.entry_point_command import EntryPointCommand
-from headers.linkedit_data_command import LinkeditDataCommand
-from headers.uuid_command import UuidCommand
-from headers.dylinker_command import DylinkerCommand
-from headers.dyld_info_command import DyldInfoCommand
-from headers.sub_framework_command import SubFrameworkCommand
-from headers.sub_client_command import SubClientCommand
-from headers.sub_umbrella_command import SubUmbrellaCommand
-from headers.sub_library_command import SubLibraryCommand
-from headers.prebound_dylib_command import PreboundDylibCommand
-from headers.twolevel_hints_command import TwolevelHintsCommand
-from headers.prebind_cksum_command import PrebindCksumCommand
 from headers.encryption_info_command import EncryptionInfoCommand, EncryptionInfoCommand64
-from headers.linker_option_command import LinkerOptionCommand
-from headers.rpath_command import RpathCommand
 
 from non_headers.encrypted_block import EncryptedBlock
 
@@ -30,80 +10,8 @@ from utils.progress_indicator import ProgressIndicator
 
 
 class MachO(object):
-    # Load commands for 32-bit architectures
-    COMMANDS_32 = {
-        'LC_SEGMENT': SegmentCommand,
-        'LC_SYMTAB': SymtabCommand,
-        'LC_DYSYMTAB': DysymtabCommand,
-        'LC_LOAD_DYLIB': DylibCommand,
-        'LC_LOAD_WEAK_DYLIB': DylibCommand,
-        'LC_ID_DYLIB': DylibCommand,
-        'LC_VERSION_MIN_MACOSX': VersionMinCommand,
-        'LC_VERSION_MIN_IPHONEOS': VersionMinCommand,
-        'LC_SOURCE_VERSION': SourceVersionCommand,
-        'LC_MAIN': EntryPointCommand,
-        'LC_CODE_SIGNATURE': LinkeditDataCommand,
-        'LC_SEGMENT_SPLIT_INFO': LinkeditDataCommand,
-        'LC_FUNCTION_STARTS': LinkeditDataCommand,
-        'LC_DATA_IN_CODE': LinkeditDataCommand,
-        'LC_DYLIB_CODE_SIGN_DRS': LinkeditDataCommand,
-        'LC_LINKER_OPTIMIZATION_HINT': LinkeditDataCommand,
-        'LC_UUID': UuidCommand,
-        'LC_ID_DYLINKER': DylinkerCommand,
-        'LC_LOAD_DYLINKER': DylinkerCommand,
-        'LC_DYLD_ENVIRONMENT': DylinkerCommand,
-        'LC_DYLD_INFO': DyldInfoCommand,
-        'LC_DYLD_INFO_ONLY': DyldInfoCommand,
-        'LC_SUB_FRAMEWORK': SubFrameworkCommand,
-        'LC_SUB_CLIENTI': SubClientCommand,
-        'LC_SUB_UMBRELLA': SubUmbrellaCommand,
-        'LC_SUB_LIBRARY': SubLibraryCommand,
-        'LC_PREBOUND_DYLIB': PreboundDylibCommand,
-        'LC_TWOLEVEL_HINTS': TwolevelHintsCommand,
-        'LC_PREBIND_CKSUM': PrebindCksumCommand,
-        'LC_ENCRYPTION_INFO': EncryptionInfoCommand,
-        'LC_LINKER_OPTION': LinkerOptionCommand,
-        'LC_RPATH': RpathCommand,
-    }
-    # Load commands for 64-bit architectures
-    COMMANDS_64 = {
-        'LC_SEGMENT_64': SegmentCommand64,
-        'LC_SYMTAB': SymtabCommand,
-        'LC_DYSYMTAB': DysymtabCommand,
-        'LC_LOAD_DYLIB': DylibCommand,
-        'LC_LOAD_WEAK_DYLIB': DylibCommand,
-        'LC_ID_DYLIB': DylibCommand,
-        'LC_VERSION_MIN_MACOSX': VersionMinCommand,
-        'LC_VERSION_MIN_IPHONEOS': VersionMinCommand,
-        'LC_SOURCE_VERSION': SourceVersionCommand,
-        'LC_MAIN': EntryPointCommand,
-        'LC_CODE_SIGNATURE': LinkeditDataCommand,
-        'LC_SEGMENT_SPLIT_INFO': LinkeditDataCommand,
-        'LC_FUNCTION_STARTS': LinkeditDataCommand,
-        'LC_DATA_IN_CODE': LinkeditDataCommand,
-        'LC_DYLIB_CODE_SIGN_DRS': LinkeditDataCommand,
-        'LC_LINKER_OPTIMIZATION_HINT': LinkeditDataCommand,
-        'LC_UUID': UuidCommand,
-        'LC_ID_DYLINKER': DylinkerCommand,
-        'LC_LOAD_DYLINKER': DylinkerCommand,
-        'LC_DYLD_ENVIRONMENT': DylinkerCommand,
-        'LC_DYLD_INFO': DyldInfoCommand,
-        'LC_DYLD_INFO_ONLY': DyldInfoCommand,
-        'LC_SUB_FRAMEWORK': SubFrameworkCommand,
-        'LC_SUB_CLIENTI': SubClientCommand,
-        'LC_SUB_UMBRELLA': SubUmbrellaCommand,
-        'LC_SUB_LIBRARY': SubLibraryCommand,
-        'LC_PREBOUND_DYLIB': PreboundDylibCommand,
-        'LC_TWOLEVEL_HINTS': TwolevelHintsCommand,
-        'LC_PREBIND_CKSUM': PrebindCksumCommand,
-        'LC_ENCRYPTION_INFO_64': EncryptionInfoCommand64,
-        'LC_LINKER_OPTION': LinkerOptionCommand,
-        'LC_RPATH': RpathCommand,
-    }
-
     def __init__(self, mach_o_br):
         self.arch_width = None
-        self.command_table = None
         self.mach_header = None
         self.load_commands = list()
         self.segments = dict()
@@ -117,7 +25,6 @@ class MachO(object):
             hdr_size = MachHeader.get_size()
             self.mach_header = MachHeader(mach_o_br.bytes(start, hdr_size))
             self.arch_width = 32
-            self.command_table = self.COMMANDS_32
         except HeaderInvalidValueError:
             pass
 
@@ -127,7 +34,6 @@ class MachO(object):
                 hdr_size = MachHeader64.get_size()
                 self.mach_header = MachHeader64(mach_o_br.bytes(start, hdr_size))
                 self.arch_width = 64
-                self.command_table = self.COMMANDS_64
             except ValueError:
                 raise ValueError('mach_o: no valid mach header found')
 
