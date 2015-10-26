@@ -2,7 +2,6 @@ from utils.byte_range_parser import ByteRangeParser
 from utils.unescape import Unescape
 from utils.progress_indicator import ProgressIndicator
 from utils.header import NullTerminatedStringField
-from utils.range import Range
 
 from headers.lc_str import LcStr
 from headers.load_command import LoadCommandCommand, LoadCommand
