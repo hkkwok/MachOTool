@@ -18,7 +18,7 @@ class Fat(ByteRangeParser):
         hdr_size = FatArch.get_size()
         self.archs = list()
         for arch_idx in xrange(self.fat_header.nfat_arch):
-            bytes_ = self._get_bytes(hdr_size)
+            bytes_ = self.get_bytes(hdr_size)
             fat_arch = FatArch(bytes_)
             self.add_subrange(fat_arch, hdr_size)
             self.archs.append(fat_arch)

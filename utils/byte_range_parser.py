@@ -22,12 +22,12 @@ class ByteRangeParser(object):
             length = self.cmd_size
         return self.byte_range.insert_subrange(self.start, length, data=data)
 
-    def _get_bytes(self, length=None):
+    def get_bytes(self, length=None):
         if length is None:
             length = self.start + self.cmd_size - self.current
         return self.byte_range.bytes(self.current, self.current + length)
 
-    def _add_padding(self, desc, offset=None):
+    def add_padding(self, desc, offset=None):
         if offset is None:
             offset = self.cmd_size
         gap = self.start + offset - self.current

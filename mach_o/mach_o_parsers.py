@@ -96,12 +96,18 @@ class LoadCommandParser(ByteRangeParser):
         self.hdr_size = None
 
     def _add_lc_str(self, name, offset):
-        self._add_padding(UnexpectedPadding('unexpected gap'), offset)
-        lc_str = LcStr.find_str(name, self._get_bytes())
+        self.add_padding(UnexpectedPadding('unexpected gap'), offset)
+        lc_str = LcStr.find_str(name, self.get_bytes())
         self.add_subrange(lc_str, len(lc_str))
 
     def _add_alignment_padding(self):
-        self._add_padding(Padding('alignment'))
+        self.add_padding(Padding('alignment'))
+
+    def _process_lc_str_command(self, cmd_desc, field_name, field_offset):
+        self._add_lc_str(field_name, field_offset)
+        self._add_alignment_padding()
+        self.byte_range.insert_subrange(self.start, self.cmd_size,
+                                        data=LoadCommandBlock(cmd_desc))
 
     def parse(self, generic_lc, start):
         self.initialize(start, generic_lc.cmdsize)
@@ -113,7 +119,7 @@ class LoadCommandParser(ByteRangeParser):
         if cmd_class is not None:
             self.hdr_size = cmd_class.get_size()
             assert callable(cmd_class)
-            lc = cmd_class(self._get_bytes(self.hdr_size))
+            lc = cmd_class(self.get_bytes(self.hdr_size))
         if cmd_class is None or lc is None:
             # This is an unknown LC. We can only create a generic LC byte range and a unknown padding.
             hdr_size = LoadCommand.get_size()
@@ -137,23 +143,17 @@ class LoadCommandParser(ByteRangeParser):
                     assert False
                 cls_size = cls.get_size()
                 assert callable(cls)
-                section = cls(self._get_bytes(cls_size))
+                section = cls(self.get_bytes(cls_size))
                 self.add_subrange(section, cls_size)
                 segment_desc.add_section(section)
             if lc.nsects > 0:
                 self.add_subrange_beneath(LoadCommandBlock(cmd_desc), self.cmd_size)
         elif cmd_desc == 'LC_LOAD_DYLIB':
             assert isinstance(lc, DylibCommand)
-            self._add_lc_str('dylib_name', lc.dylib_name_offset)  # parse dylib.name
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'dylib_name', lc.dylib_name_offset)
         elif cmd_desc in ('LC_ID_DYLINKER', 'LC_LOAD_DYLINKER', 'LC_DYLD_ENVIRONMENT'):
             assert isinstance(lc, DylinkerCommand)
-            self._add_lc_str('name', lc.name_offset)  # parse name
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'name', lc.name_offset)
         elif cmd_desc in ('LC_DYLD_INFO', 'LC_DYLD_INFO_ONLY'):
             assert isinstance(lc, DyldInfoCommand)
             # Record the rebase, different types of bind and export sections
@@ -169,35 +169,23 @@ class LoadCommandParser(ByteRangeParser):
             LinkeditDataParser(self.byte_range, self.mach_o.arch_width).parse(lc)
         elif cmd_desc == 'LC_SUB_FRAMEWORK':
             assert isinstance(lc, SubFrameworkCommand)
-            self._add_lc_str('umbrella', lc.umbrella_offset)
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'umbrella', lc.umbrella_offset)
         elif cmd_desc == 'LC_SUB_CLIENT':
             assert isinstance(lc, SubClientCommand)
-            self._add_lc_str('client', lc.client_offset)
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'client', lc.client_offset)
         elif cmd_desc == 'LC_SUB_UMBRELLA':
             assert isinstance(lc, SubUmbrellaCommand)
-            self._add_lc_str('sub_umbrella', lc.sub_umbrella_offset)
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'sub_umbrella', lc.sub_umbrella_offset)
         elif cmd_desc == 'LC_SUB_LIBRARY':
             assert isinstance(lc, SubLibraryCommand)
-            self._add_lc_str('library', lc.library_offset)
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'library', lc.library_offset)
         elif cmd_desc == 'LC_PREBOUND_DYLIB':
             assert isinstance(lc, PreboundDylibCommand)
             self._add_lc_str('name', lc.name_offset)
-            self._add_padding(UnexpectedPadding('unexpected gap'), lc.linked_modules_offset)
+            self.add_padding(UnexpectedPadding('unexpected gap'), lc.linked_modules_offset)
             # get the module bit vector
             num_bytes = (lc.nmodules + 7) / 8
-            bit_vector = self._get_bytes(num_bytes)
+            bit_vector = self.get_bytes(num_bytes)
             self.add_subrange('<modules:%s>' % ' '.join(['%02x' % x for x in bit_vector]))
             self._add_alignment_padding()
             self.byte_range.insert_subrange(self.start, self.cmd_size,
@@ -221,13 +209,10 @@ class LoadCommandParser(ByteRangeParser):
             raise NotImplementedError()  # TODO - need to make a test binary
         elif cmd_desc == 'LC_RPATH':
             assert isinstance(lc, RpathCommand)
-            self._add_lc_str('path', lc.path_offset)
-            self._add_alignment_padding()
-            self.byte_range.insert_subrange(self.start, self.cmd_size,
-                                            data=LoadCommandBlock(cmd_desc))
+            self._process_lc_str_command(cmd_desc, 'path', lc.path_offset)
 
         # Account for any trailing gap
-        self._add_padding(Padding(cmd_desc))
+        self.add_padding(Padding(cmd_desc))
 
 
 class SectionParser(ByteRangeParser):
@@ -242,7 +227,7 @@ class SectionParser(ByteRangeParser):
         # Get the segment and section names
         seg_name = NullTerminatedStringField.get_string(section.segname)
         sect_name = NullTerminatedStringField.get_string(section.sectname)
-        bytes_ = self._get_bytes()
+        bytes_ = self.get_bytes()
         if seg_name == '__TEXT':
             data_section = TextSection(sect_name, bytes_)
         elif seg_name == '__DATA':
