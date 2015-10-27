@@ -7,7 +7,7 @@ class LightTable(LightScrollableWidget):
     LIGHT_BLUE_TAG_NAME = 'light_blue_background'
     LIGHT_BLUE = '#e0e8f0'
     FONT = None
-    RIGHT_GAP = 2
+    COLUMN_PADDING = 5
 
     def __init__(self, parent, title, columns):
         if self.FONT is None:
@@ -76,20 +76,20 @@ class LightTable(LightScrollableWidget):
         else:
             self._show(0, widget_rows - 1)
             self.yscroll.set(str(0.0), str(self.to_normalized(widget_rows)))
+        self._resize_columns()
 
     def _resize_columns(self):
-        total = sum(self._column_widths)
-        if total == 0:
+        total_req = sum(self._column_widths) + (self.COLUMN_PADDING * len(self._column_widths))
+        if total_req == 0:
             return
         print 'COL_WIDTHS[%s]:' % self.__class__, self._column_widths
         widget_width = self._widget_width
-        gap = self.RIGHT_GAP
-        if self._widget_width > gap:
-            widget_width -= gap  # leave a little gap on the right
-        scale = float(widget_width) / float(total)
-        self.widget.column('#0', width=int(self._column_widths[0] * scale))
+
+        scale = max(1.0, float(widget_width) / float(total_req))
+
+        self.widget.column('#0', width=int((self._column_widths[0] + self.COLUMN_PADDING) * scale))
         for idx in xrange(1, len(self._columns)):
-            self.widget.column(self._columns[idx], width=int(self._column_widths[idx] * scale))
+            self.widget.column(self._columns[idx], width=int((self._column_widths[idx] + self.COLUMN_PADDING) * scale))
 
     def _may_resize_columns(self, attrs):
         if self.CONFIG_WIDTH in attrs:

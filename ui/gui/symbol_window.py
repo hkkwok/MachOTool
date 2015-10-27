@@ -4,6 +4,7 @@ from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.byte_range import ByteRange
 from utils.header import NullTerminatedStringField
+from utils.commafy import commafy
 from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
 from mach_o.non_headers.symbol_table_block import SymbolTable
@@ -90,7 +91,8 @@ class SymbolWindow(WindowTab):
             if num_matches == 0:
                 continue
             self.mach_o_table.add('', len(self._filter_mapping),
-                                  (mach_o_info.desc, mach_o_info.num_symbols(), mach_o_info.num_matched))
+                                  (mach_o_info.desc, commafy(mach_o_info.num_symbols()),
+                                   commafy(mach_o_info.num_matched)))
             self._filter_mapping.append(mach_o_idx)
 
         # Update symbol table
