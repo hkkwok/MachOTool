@@ -60,7 +60,7 @@ class Token(object):
             return KeywordToken.from_string(s)
 
     def __eq__(self, other):
-        return self._type == other.type
+        return self._type == other._type
 
     def is_keyword(self):
         return isinstance(self, KeywordToken)
@@ -97,6 +97,7 @@ class KeywordToken(Token):
 class ParameterToken(Token):
     def __init__(self, type_, name):
         super(ParameterToken, self).__init__(type_)
+        assert name is not None
         self.name = name
 
     def accept(self, s):
