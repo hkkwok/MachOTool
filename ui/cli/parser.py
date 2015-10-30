@@ -37,19 +37,16 @@ class ParseNode(object):
         self._children.append(new_child)
         return new_child
 
-    def find_executable_node(self):
+    def find_executable_node(self, s=''):
         if self.is_end_of_command():
             return self
         assert isinstance(self, ParseNode)
-        if len(self._children) == 1:
-            if not self.token.is_parameter():
-                return self._children[0].find_executable_node()
-            else:
-                return None
-        for child in self._children:
-            if child.is_end_of_command():
-                return child
-        return None
+        nodes = self.find_complete_child_nodes(s)
+        if len(nodes) != 1:
+            return None
+        if nodes[0].is_end_of_command():
+            return nodes[0]
+        return nodes[0].find_executable_node()
 
     def is_end_of_command(self):
         return isinstance(self, EndOfCommandNode)
@@ -59,6 +56,20 @@ class ParseNode(object):
             if isinstance(child.token, StringToken):
                 return True
         return False
+
+    def find_complete_child_nodes(self, s):
+        complete_nodes = list()
+        for child in self._children:
+            if child.token is None:
+                # end-of-command node
+                if s == '':
+                    complete_nodes.append(child)
+                else:
+                    continue
+            else:
+                if child.token.is_complete(s):
+                    complete_nodes.append(child)
+        return complete_nodes
 
 
 class EndOfCommandNode(ParseNode):
@@ -99,16 +110,26 @@ class ParseStackLevel(object):
         return True
 
     def is_parameter(self):
-        return isinstance(self._node.token, ParameterToken)
-
-    def value(self):
-        return self._node.token.value(self.string)
+        return self._node.token.is_parameter()
 
     def match(self):
         return self._node.match(self.string)
 
-    def is_complete(self):
-        return self._node.token.is_complete(self.string)
+    def value(self, s):
+        token = self._node.token
+        if token is None:
+            return None
+        return token.value(s)
+
+    def complete(self):
+        nodes = self._node.find_complete_child_nodes(self.string)
+        if len(nodes) == 1:
+            return True, nodes[0]
+        else:
+            return False, None
+
+    def find_executable_node(self):
+        return self._node.find_executable_node(self.string)
 
 
 class ParseStack(object):
@@ -147,9 +168,18 @@ class ParseStack(object):
 
         # walk the stack to grab all parameters
         params = list()
-        for level in self._stack:
+        for idx in xrange(0, self.depth()-1):
+            token_string = self._stack[idx].string
+            level = self._stack[idx+1]
             if level.is_parameter():
-                params.append(level.value())
+                params.append(level.value(token_string))
+
+        # Process the last level
+        token_string = self._stack[-1].string
+        is_complete, node = self._stack[-1].complete()
+        assert is_complete  # otherwise (i.e. if incomplete), eoc_node would be None
+        if node.token.is_parameter():
+            params.append(node.token.value(token_string))
 
         # call the command callback
         eoc_node.execute(*params)
@@ -157,6 +187,12 @@ class ParseStack(object):
 
     def top_of_stack(self):
         return self._stack[-1]
+
+    def depth(self):
+        """
+        Return the depth of the stack. Mainly for unit tests
+        """
+        return len(self._stack)
 
 
 class CommandParser(object):
@@ -290,7 +326,12 @@ class CommandParser(object):
     def _state_char(self, ch):
         self._add_char(ch)
         if ch == ' ':
-            self._state = self._either_or(self._stack.top_of_stack().is_complete(), self.STATE_SPACE, self.STATE_ERROR)
+            is_complete, next_node = self._stack.top_of_stack().complete()
+            if is_complete:
+                self._state = self.STATE_SPACE
+                self._stack.push(next_node)
+            else:
+                self._state = self.STATE_ERROR
         elif ch == '"':
             # Only open a quote if there is a child string token
             self._state = self._either_or(self._stack.top_of_stack().has_string_child_token(),
@@ -307,7 +348,7 @@ class CommandParser(object):
                 # return the string that needs to complete the command
                 node = matched_nodes[0]
                 if node.token.is_parameter():
-                    if stack_top.is_complete():
+                    if stack_top.complete():
                         self.input(' ')
                     else:
                         self._display_nodes([node])

@@ -29,7 +29,7 @@ class Token(object):
         raise NotImplementedError()
 
     def is_complete(self, s):
-        return len(s) > 0 and self.accept(s) and self._is_complete(s)
+        return self.accept(s) and self._is_complete(s)
 
     def _value(self, s):
         """
@@ -78,7 +78,7 @@ class KeywordToken(Token):
         return self.keyword.startswith(s)
 
     def _is_complete(self, s):
-        return self.keyword == s
+        return self.keyword.startswith(s)
 
     def _value(self, s):
         return self.keyword
@@ -104,7 +104,7 @@ class ParameterToken(Token):
         return super(ParameterToken, self).accept(s)
 
     def _is_complete(self, s):
-        return super(ParameterToken, self)._is_complete(s)
+        return len(s) > 0
 
     def _value(self, s):
         return super(ParameterToken, self)._value(s)
@@ -148,7 +148,7 @@ class IntegerToken(ParameterToken):
         return self._check_pattern(s, string.digits)
 
     def _is_complete(self, s):
-        return True
+        return super(IntegerToken, self)._is_complete(s)
 
     def _value(self, s):
         return int(s)
@@ -168,7 +168,7 @@ class HexToken(ParameterToken):
             return self._check_pattern(s[2:], string.hexdigits)
 
     def _is_complete(self, s):
-        return len(s) >= 3
+        return len(s) >= 3 and super(HexToken, self)._is_complete(s)
 
     def _value(self, s):
         return int(s, 16)
@@ -182,7 +182,7 @@ class StringToken(ParameterToken):
         return self._check_pattern(s, string.printable)
 
     def _is_complete(self, s):
-        return True
+        return super(StringToken, self)._is_complete(s)
 
     def _value(self, s):
         return s
@@ -205,7 +205,7 @@ class BooleanToken(ParameterToken):
         return s in ('true', 'false')
 
     def _is_complete(self, s):
-        return self._short_values(s) or s == 'true' or s == 'false'
+        return (self._short_values(s) or s == 'true' or s == 'false') and super(BooleanToken, self)._is_complete(s)
 
     def _value(self, s):
         s = s.lower()
