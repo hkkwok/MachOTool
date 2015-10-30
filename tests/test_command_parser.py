@@ -180,3 +180,62 @@ class TestParseNode(unittest.TestCase):
         self.assertTrue(stack.add_char('2'))
         self._check_complete(stack, True, self.stop_addr_node)
         self._check_execute(stack, True, None, 'show_start_stop_addr_callback', {'start_addr': 0x1, 'stop_addr': 0x2})
+
+
+class TestCommandParser(unittest.TestCase):
+    def show_line_num_callback(self, line_num):
+        self.callback_func = 'show_line_num_callback'
+        self.callback_params = {'line_num': line_num}
+
+    def show_addr_callback(self, addr):
+        self.callback_func = 'show_addr_callback'
+        self.callback_params = {'addr': addr}
+
+    def show_start_stop_addr_callback(self, start_addr, stop_addr):
+        self.callback_func = 'show_start_stop_addr_callback'
+        self.callback_params = {'start_addr': start_addr, 'stop_addr': stop_addr}
+
+    def save_callback(self):
+        self.callback_func = 'save_callback'
+        self.callback_params = {}
+
+    def clear_all_info_callback(self):
+        self.callback_func = 'clear_all_info_callback'
+        self.callback_params = {}
+
+    def print_callback(self, message):
+        self.callback_func = 'print_callback'
+        self.callback_params = {'message': message}
+
+    def setUp(self):
+        self.parser = CommandParser('>> ')
+        self.callback_func = None
+        self.callback_params = None
+        self.parser.add_command('show <INT:line_num>', self.show_line_num_callback, 'Show line number', {})
+        self.parser.add_command('show <HEX:start_addr>', self.show_addr_callback, 'Show an address', {})
+        self.parser.add_command('show <HEX:start_addr> <HEX:stop_addr>', self.show_start_stop_addr_callback,
+                                'Show a range of addresses', {})
+        self.parser.add_command('save', self.save_callback, 'Save states', {})
+        self.parser.add_command('clear all info', self.clear_all_info_callback, 'Clear all info', {})
+        self.parser.add_command('print <STR:message>', self.print_callback, 'Print a message', {})
+
+    def _reset_callback_states(self):
+        self.callback_func = None
+        self.callback_params = None
+
+    def _check_callback(self, func, params):
+        self.assertEqual(func, self.callback_func)
+        self.assertDictEqual(params, self.callback_params)
+
+    def test_basic_command(self):
+        self._reset_callback_states()
+        self.parser.input('show 0\n')
+        self._check_callback('show_line_num_callback', {'line_num': 0})
+
+        self._reset_callback_states()
+        self.parser.input('show 0x1\n')
+        self._check_callback('show_addr_callback', {'addr': 0x1})
+
+        self._reset_callback_states()
+        self.parser.input('show 0x1 0x2\n')
+        self._check_callback('show_start_stop_addr_callback', {'start_addr': 0x1, 'stop_addr': 0x2})

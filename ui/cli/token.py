@@ -119,14 +119,13 @@ class ParameterToken(Token):
     def from_string(cls, s):
         if not s.startswith('<') or not s.endswith('>'):
             raise ValueError('Parameter token must have the form of <type:name>')
-        parts = s.split(':')
+        parts = s[1:-1].split(':')
         if len(parts) != 2:
             raise ValueError('Parameter token must have the form of <type:name>')
         type_, name = parts
 
         # Make sure the name is valid. It must be a valid python variable name
-        if not cls._check_pattern(name, string.ascii_letters) and \
-                not cls._check_pattern(name, string.digits) and s != '_':
+        if not cls._check_pattern(name, string.ascii_letters+string.digits+'_'):
             raise ValueError('Invalid parameter name %s. '
                              'Parameter name should only contain letters, digits and underscore.' % name)
 

@@ -142,6 +142,10 @@ class ParseStack(object):
     def pop(self):
         return self._stack.pop()
 
+    def pop_all(self):
+        while len(self._stack) > 0:
+            self.pop()
+
     def empty(self):
         return len(self._stack) == 0
 
@@ -202,15 +206,15 @@ class CommandParser(object):
     STATE_ERROR = 'ERROR'
 
     def __init__(self, prompt):
+        self.prompt = prompt
         self._root = ParseNode(Token(Token.ROOT))
         self._stack = ParseStack()
         self._line = None
         self._state = None
         self._last_good = None
         self._quote_start = None
-        self._reset_line()
-        self.prompt = prompt
         self.outfile = sys.stdout
+        self._reset_line()
 
     def _display(self, s):
         self.outfile.write(s)
@@ -222,6 +226,8 @@ class CommandParser(object):
         self._last_good = 0
         self._quote_start = -1
         self._display(self.prompt)
+        self._stack.pop_all()
+        self._stack.push(self._root)
 
     def add_command(self, command, callback, cmd_desc, token_desc):
         """
@@ -361,6 +367,7 @@ class CommandParser(object):
             succeeded, reason = self._stack.execute()
             if not succeeded:
                 self._display('ERROR: %s\n' % reason)
+            self._reset_line()
         elif ch == '\b':
             self._del_char()
             self._state = self._state_from_last_char()
@@ -410,6 +417,9 @@ class CommandParser(object):
             self._del_char()
             self._state = self._state_from_last_char()
         elif ch == '\n':
-            self._stack.execute()
+            succeeded, reason = self._stack.execute()
+            if not succeeded:
+                self._display('ERROR: %s\n' % reason)
+            self._reset_line()
         else:
             self._state = self._either_or(self._stack.add_char(ch), self.STATE_CHAR, self.STATE_ERROR)
