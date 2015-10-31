@@ -7,8 +7,9 @@ from window_tab import WindowTab
 from utils.byte_range import ByteRange
 from utils.commafy import commafy
 from mach_o.headers.mach_header import MachHeader, MachHeader64
-from mach_o.non_headers.section_block import CstringSection, ObjCMethodNameSection, NullTerminatedStringSection
+from mach_o.non_headers.section_block import CstringSection, ObjCMethodNameSection
 from mach_o.non_headers.segment_block import SegmentBlock
+from mach_o.non_headers.string_info import StringMachOInfo
 
 
 class StringWindow(WindowTab):
@@ -76,7 +77,7 @@ class StringWindow(WindowTab):
         if isinstance(br.data, (MachHeader, MachHeader64)):
             mach_o_hdr = br.data
             cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
-            self._mach_o_info.append(_MachOInfo('Mach-O: ' + cpu_type, br.abs_start()))
+            self._mach_o_info.append(StringMachOInfo('Mach-O: ' + cpu_type, br.abs_start()))
         elif isinstance(br.data, SegmentBlock):
             self._current_segemnt = br.data.seg_name
         elif isinstance(br.data, (CstringSection, ObjCMethodNameSection)):
@@ -162,43 +163,3 @@ class StringTableView(LightTable):
         self._sections = sections
         num_matched = sum([sect.num_matched for sect in self._sections])
         self.set_rows(num_matched)
-
-
-class _MachOInfo(object):
-    def __init__(self, desc, offset):
-        self.desc = desc
-        self.offset = offset
-        self.string_sections = list()
-        self.num_matched = 0
-        self.num_strings = 0
-
-    def add_section(self, seg_name, section, offset):
-        assert isinstance(section, NullTerminatedStringSection)
-        desc = '%s, %s' % (seg_name, section.sect_name)
-        section_info = _StringSectionInfo(desc, offset, section)
-        self.string_sections.append(section_info)
-        self.num_strings += section.num_strings()
-
-    def filter(self, pattern):
-        self.num_matched = sum([sect.filter(pattern) for sect in self.string_sections])
-        return self.num_matched
-
-
-class _StringSectionInfo(object):
-    def __init__(self, desc, offset, section):
-        self.desc = desc
-        self.offset = offset
-        assert isinstance(section, NullTerminatedStringSection)
-        self._section = section
-        self._filter_mapping = None
-        self.num_strings = self._section.num_strings()
-        self.num_matched = 0
-
-    def filter(self, pattern):
-        self._filter_mapping = self._section.filter(pattern)
-        self.num_matched = len(self._filter_mapping)
-        return self.num_matched
-
-    def string(self, matched_idx):
-        assert 0 <= matched_idx < len(self._filter_mapping)
-        return self._section.item(matched_idx)
