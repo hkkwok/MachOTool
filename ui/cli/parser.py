@@ -182,7 +182,8 @@ class ParseStack(object):
         token_string = self._stack[-1].string
         is_complete, node = self._stack[-1].complete()
         assert is_complete  # otherwise (i.e. if incomplete), eoc_node would be None
-        if node.token.is_parameter():
+        token = node.token
+        if node.token is not None and node.token.is_parameter():
             params.append(node.token.value(token_string))
 
         # call the command callback
@@ -205,8 +206,10 @@ class CommandParser(object):
     STATE_QUOTE = 'QUOTE'
     STATE_ERROR = 'ERROR'
 
-    def __init__(self, prompt):
+    def __init__(self, prompt, del_char='\b', enter_char='\n'):
         self.prompt = prompt
+        self.del_char = del_char
+        self.enter_char = enter_char
         self._root = ParseNode(Token(Token.ROOT))
         self._stack = ParseStack()
         self._line = None
@@ -223,9 +226,9 @@ class CommandParser(object):
     def _reset_line(self):
         self._line = ''
         self._state = self.STATE_CHAR
-        self._last_good = 0
+        self._last_good = -1
         self._quote_start = -1
-        self._display(self.prompt)
+        self._display('\n' + self.prompt)
         self._stack.pop_all()
         self._stack.push(self._root)
 
@@ -303,9 +306,11 @@ class CommandParser(object):
     def _del_char(self):
         if len(self._line) == 0:
             return None
+        if self._last_good == self._last_char_index():
+            self._last_good -= 1
         ch = self._line[-1]
         self._line = self._line[:-1]
-        self._display('/b')
+        self._display('\b \b')
         return ch
 
     @staticmethod
@@ -330,8 +335,8 @@ class CommandParser(object):
             return self.STATE_CHAR
 
     def _state_char(self, ch):
-        self._add_char(ch)
         if ch == ' ':
+            self._add_char(ch)
             is_complete, next_node = self._stack.top_of_stack().complete()
             if is_complete:
                 self._state = self.STATE_SPACE
@@ -339,6 +344,7 @@ class CommandParser(object):
             else:
                 self._state = self.STATE_ERROR
         elif ch == '"':
+            self._add_char(ch)
             # Only open a quote if there is a child string token
             self._state = self._either_or(self._stack.top_of_stack().has_string_child_token(),
                                           self.STATE_QUOTE, self.STATE_ERROR)
@@ -363,16 +369,21 @@ class CommandParser(object):
                     assert token.is_keyword()
                     assert token.keyword.startswith(stack_top.string)
                     self.input(token.keyword[len(stack_top.string):])
-        elif ch == '\n':
+        elif ch == self.enter_char:
             succeeded, reason = self._stack.execute()
             if not succeeded:
-                self._display('ERROR: %s\n' % reason)
+                self._display('\nERROR: %s\n' % reason)
             self._reset_line()
-        elif ch == '\b':
+        elif ch == self.del_char:
             self._del_char()
+            self._stack.del_char()
             self._state = self._state_from_last_char()
         else:
-            self._state = self._either_or(self._stack.add_char(ch), self.STATE_CHAR, self.STATE_ERROR)
+            self._add_char(ch)
+            if self._stack.add_char(ch):
+                self._last_good += 1
+            else:
+                self._state = self.STATE_ERROR
 
     def _state_quote(self, ch):
         if ch == '"':
@@ -380,12 +391,14 @@ class CommandParser(object):
             self._add_char(ch)
             self._last_good += 1
             self._state = self.STATE_CHAR
-        elif ch == '\b':
+        elif ch == self.del_char:
             del_ch = self._del_char()
             if del_ch == '"':
                 # Delete 1st quote mark of the quoted string
                 self._state = self._state_from_last_char()
-        elif ch == '\n':
+            else:
+                self._stack.del_char()
+        elif ch == self.enter_char:
             self._display('ERROR: quote is not closed\n')
             self._reset_line()
         else:
@@ -398,13 +411,13 @@ class CommandParser(object):
             self._last_good += 1
 
     def _state_error(self, ch):
-        if ch == '\b':
+        if ch == self.del_char:
             self._del_char()
             if self._last_char_index() == self._last_good:
                 self._state = self._state_from_last_char()
-        elif ch == '\n':
+        elif ch == self.enter_char:
             self._display_error_pointer()
-            self._display('ERROR: parse error at character %d\n' % (self._last_good + 1))
+            self._display('ERROR: parse error at character %d\n' % (self._last_good + 1 + 1))
             self._reset_line()
         else:
             self._add_char(ch)
@@ -413,13 +426,20 @@ class CommandParser(object):
         if ch == ' ':
             self._add_char(ch)
             self._last_good += 1
-        elif ch == '\b':
+        elif ch == self.del_char:
             self._del_char()
             self._state = self._state_from_last_char()
-        elif ch == '\n':
+            if self._state == self.STATE_CHAR:
+                self._stack.pop()
+        elif ch == self.enter_char:
             succeeded, reason = self._stack.execute()
             if not succeeded:
                 self._display('ERROR: %s\n' % reason)
             self._reset_line()
         else:
-            self._state = self._either_or(self._stack.add_char(ch), self.STATE_CHAR, self.STATE_ERROR)
+            self._add_char(ch)
+            if self._stack.add_char(ch):
+                self._state = self.STATE_CHAR
+                self._last_good += 1
+            else:
+                self._state = self.STATE_ERROR

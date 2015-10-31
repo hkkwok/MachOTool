@@ -1,6 +1,7 @@
 import unittest
 from ui.cli.parser import *
 from ui.cli.token import *
+from utils.unescape import Unescape
 
 
 class TestParseNode(unittest.TestCase):
@@ -186,26 +187,32 @@ class TestCommandParser(unittest.TestCase):
     def show_line_num_callback(self, line_num):
         self.callback_func = 'show_line_num_callback'
         self.callback_params = {'line_num': line_num}
+        print '\nshow_line_num_callback: line_num=%d' % line_num
 
     def show_addr_callback(self, addr):
         self.callback_func = 'show_addr_callback'
         self.callback_params = {'addr': addr}
+        print '\nshow_addr_callback: addr=%s' % hex(addr)
 
     def show_start_stop_addr_callback(self, start_addr, stop_addr):
         self.callback_func = 'show_start_stop_addr_callback'
         self.callback_params = {'start_addr': start_addr, 'stop_addr': stop_addr}
+        print '\nshow_start_stop_addr_callback: start_addr=%s, stop_addr=%s' % (hex(start_addr), hex(stop_addr))
 
     def save_callback(self):
         self.callback_func = 'save_callback'
         self.callback_params = {}
+        print '\nsave_callback'
 
     def clear_all_info_callback(self):
         self.callback_func = 'clear_all_info_callback'
         self.callback_params = {}
+        print '\nclear_all_info_callback'
 
     def print_callback(self, message):
         self.callback_func = 'print_callback'
         self.callback_params = {'message': message}
+        print '\nprint_callback: message=%s' % message
 
     def setUp(self):
         self.parser = CommandParser('>> ')
@@ -225,17 +232,52 @@ class TestCommandParser(unittest.TestCase):
 
     def _check_callback(self, func, params):
         self.assertEqual(func, self.callback_func)
-        self.assertDictEqual(params, self.callback_params)
+        if params is None:
+            self.assertIsNone(self.callback_params)
+        else:
+            self.assertDictEqual(params, self.callback_params)
 
     def test_basic_command(self):
-        self._reset_callback_states()
-        self.parser.input('show 0\n')
-        self._check_callback('show_line_num_callback', {'line_num': 0})
+        show_line_num_params = ('show_line_num_callback', {'line_num': 0})
+        show_addr_params = ('show_addr_callback', {'addr': 0x1})
+        show_start_stop_params = ('show_start_stop_addr_callback', {'start_addr': 0x1, 'stop_addr': 0x2})
+        clear_all_info_params = ('clear_all_info_callback', {})
+        print_message_params = ('print_callback', {'message': 'hello-world'})
+        test_vectors = [
+            ('show 0\n', show_line_num_params),
+            ('show 0x1\n', show_addr_params),
+            ('show 0x1 0x2\n', show_start_stop_params),
+            ('clear all info\n', clear_all_info_params),
+            ('print hello-world\n', print_message_params),
 
-        self._reset_callback_states()
-        self.parser.input('show 0x1\n')
-        self._check_callback('show_addr_callback', {'addr': 0x1})
+            # Test STATE_ERROR
+            ('shaw \n', (None, None)),
+            ('show 0x\n', (None, None)),
+            ('show 0a  \n', (None, None)),
 
-        self._reset_callback_states()
-        self.parser.input('show 0x1 0x2\n')
-        self._check_callback('show_start_stop_addr_callback', {'start_addr': 0x1, 'stop_addr': 0x2})
+            # Test STATE_SPACE
+            ('show  0  \n', show_line_num_params),
+            ('show  0x1  \n', show_addr_params),
+            ('show  0x1  0x2  \n', show_start_stop_params),
+            ('clear   all  info  \n', clear_all_info_params),
+            ('print  hello-world  \n', print_message_params),
+
+            # Test backspace
+            # Backspace in STATE_CHAR
+            ('s\bclear all info\n', clear_all_info_params),
+            ('show\b\b\b\bclear all info\n', clear_all_info_params),
+
+            # Backspace in STATE_SPACE
+            ('show  \b 0x1\n', show_addr_params),
+
+            # Backspace in STATE_SPACE that goes to STATE_CHAR
+            ('show \b 0x1\n', show_addr_params),
+            ('show  \b\b\b\b\b\bclear all info\n', clear_all_info_params)
+        ]
+
+        for line, results in test_vectors:
+            print '\b\b\bTesting input "%s"' % Unescape.convert(line)
+            print '>> ',
+            self._reset_callback_states()
+            self.parser.input(line)
+            self._check_callback(*results)
