@@ -2,9 +2,9 @@ from utils.header import NullTerminatedStringField
 from mach_o.headers.nlist import Nlist64
 
 
-class SectionMachOInfo(object):
+class SymbolMachOInfo(object):
     """
-    MachOInfo is a helper class that manages the information to be presented
+    SymbolMachOInfo is a helper class that manages the information to be presented
     in SymbolWindow. There is one MachOInfo object per MachO in a binary.
     It contains a list of symbol tables and sections (for that MachO). It also
     holds the filtering results. The UI objects above only need to:

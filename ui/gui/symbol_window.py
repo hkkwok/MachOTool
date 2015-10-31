@@ -3,12 +3,11 @@ import ttk
 from window_tab import WindowTab
 from tree_table import TreeTable
 from utils.byte_range import ByteRange
-from utils.header import NullTerminatedStringField
 from utils.commafy import commafy
-from mach_o.headers.nlist import Nlist64
 from mach_o.headers.section import Section, Section64
 from mach_o.non_headers.symbol_table_block import SymbolTable
 from mach_o.headers.mach_header import MachHeader, MachHeader64
+from mach_o.non_headers.symbol_info import SymbolMachOInfo
 from light_table import LightTable
 
 
@@ -73,7 +72,7 @@ class SymbolWindow(WindowTab):
         if isinstance(br.data, (MachHeader, MachHeader64)):
             mach_o_hdr = br.data
             cpu_type = mach_o_hdr.FIELDS[1].display(mach_o_hdr)
-            mach_o_info = SectionMachOInfo(cpu_type)
+            mach_o_info = SymbolMachOInfo(cpu_type)
             self._mach_o_info.append(mach_o_info)
         elif isinstance(br.data, SymbolTable):
             self._mach_o_info[-1].add_symbol_table(br.data)
@@ -148,5 +147,3 @@ class SymbolTableView(LightTable):
             return 'Y'
         else:
             return 'N'
-
-
